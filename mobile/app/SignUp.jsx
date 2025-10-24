@@ -1,267 +1,212 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Subheading, BodyText } from './components/CustomText';
 import { Ionicons } from '@expo/vector-icons';
 
-const SignUp = () => {
-  const [activeButton, setActiveButton] = useState('signup');
-  const router = useRouter();
+const PRIMARY_COLOR = '#FCC8D1';
+const SECONDARY_COLOR = '#D14D72';
 
-  const handleLogin = () => {
-    setActiveButton('login');
-    router.push('./'); // Navigates back to the index.jsx (login screen)
-  };
+export default function SignUp() {
+    const [fullName, setFullName] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [errors, setErrors] = useState({ n: false, u: false, p: false });
+    const [activeButton, setActiveButton] = useState('signup');
+    const router = useRouter();
 
-  const handleSignUp = () => {
-    setActiveButton('signup');
-  };
+    // Updates state and clears specific error
+    const handleChange = (setter, key) => (t) => {
+        setter(t);
+        if (errors[key]) setErrors(e => ({ ...e, [key]: false }));
+    };
 
-  const handleFinalSignUp = () => {
-    router.replace('/(tabs)/home'); // Navigate to the home screen after signup
-  };
+    // Handles login button press
+    const handleLogin = () => {
+        setActiveButton('login');
+        router.push('./'); // Navigates back to the login screen
+    };
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.container}>
+    // Handles signup button press
+    const handleSignUp = () => {
+        setActiveButton('signup');
+    };
 
-          <View style={styles.topImageContainer}>
-            <Image
-              source={require('../assets/images/logo.png')}
-              style={styles.logo}
-            />
-            <Text style={styles.topText}>Sign up to explore about our app</Text>
-          </View>
+    // Handles final signup action
+    const handleFinalSignUp = () => {
+        router.replace({ pathname: '/(tabs)/home', params: { justLoggedIn: 'true' } });
+    };
 
-          <View style={styles.container2}>
-            <View style={styles.pinkRectangle} />
-            <View style={styles.roundedRectangle} />
-          </View>
+    // Submits the signup form
+    const submit = () => {
+        const e = { n: !fullName.trim(), u: !username.trim(), p: !password.trim() };
+        setErrors(e);
+        if (e.n || e.u || e.p) return Alert.alert('Required', 'Please fill all fields');
+        router.replace('/(tabs)/home');
+    };
 
-          <View style={styles.container3}>
-            <View style={styles.buttonWrapper}>
-              <View
-                style={[
-                  styles.loginRectangle,
-                  activeButton === 'login' && styles.slideLeft,
-                ]}
-              />
+    const hasAllInput = fullName && username && password;
 
-              <TouchableOpacity
-                style={styles.touchable}
-                onPress={handleLogin}
-              >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    activeButton === 'login' ? styles.activeText : styles.inactiveText,
-                  ]}
-                >
-                  Log in
-                </Text>
-              </TouchableOpacity>
+    return (
+        <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView contentContainerStyle={s.scrollContainer} keyboardShouldPersistTaps="handled">
+                <View style={s.container}>
+                    {/* Top Section */}
+                    <View style={s.top}>
+                        <Image source={require('../assets/images/logo.png')} style={s.logo} />
+                        <BodyText style={s.topText}>Sign up to explore about our app</BodyText>
+                    </View>
 
-              <TouchableOpacity
-                style={styles.touchable}
-                onPress={handleSignUp}
-              >
-                <Text
-                  style={[
-                    styles.buttonText,
-                    activeButton === 'signup' ? styles.activeText : styles.inactiveText,
-                  ]}
-                >
-                  Sign up
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+                    {/* Design Shapes */}
+                    <View>
+                        <View style={s.pinkRectangle} />
+                        <View style={s.roundedRectangle} />
+                    </View>
 
-          <View style={[styles.inputContainer, { marginTop: 30}]}>
-            <TextInput
-              placeholder="Full Name"
-              keyboardType="default"
-              style={styles.textInput}
-            />
-          </View>
+                    {/* Toggle Buttons */}
+                    <View style={s.toggleRow}>
+                        <TouchableOpacity style={s.toggleBtn} onPress={handleLogin}>
+                            <Subheading style={[s.toggleText, { color: PRIMARY_COLOR }]}>Log in</Subheading>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[s.toggleBtn, s.activeToggle]} onPress={handleSignUp}>
+                            <Subheading style={[s.toggleText, s.activeText]}>Sign up</Subheading>
+                        </TouchableOpacity>
+                    </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              placeholder="Username or Email"
-              keyboardType="email-address"
-              style={styles.textInput}
-            />
-          </View>
+                    {/* Full Name Input */}
+                    <View style={s.inputWrap}>
+                        <TextInput
+                            placeholder="Full Name" style={[s.input, s.inputFont]} value={fullName} onChangeText={handleChange(setFullName, 'n')} />
+                        {errors.n && <BodyText style={s.err}>Required</BodyText>}
+                    </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              placeholder="Password"
-              keyboardType="default"
-              secureTextEntry={true}
-              style={styles.textInput}
-            />
-          </View>
+                    {/* Username/Email Input */}
+                    <View style={s.inputWrap}>
+                        <TextInput
+                            placeholder="Username or Email" keyboardType="email-address" style={[s.input, s.inputFont]} value={username} onChangeText={handleChange(setUsername, 'u')} />
+                        {errors.u && <BodyText style={s.err}>Required</BodyText>}
+                    </View>
 
-          <TouchableOpacity onPress={handleFinalSignUp} style={styles.button}>
-            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Sign up</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-};
+                    {/* Password Input */}
+                    <View style={s.inputWrap}>
+                        <TextInput
+                            placeholder="Password" secureTextEntry style={[s.input, s.inputFont]}  value={password} onChangeText={handleChange(setPassword, 'p')} />
+                        {errors.p && <BodyText style={s.err}>Required</BodyText>}
+                    </View>
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
+                    {/* Submit Button */}
+                    <TouchableOpacity onPress={submit} style={[s.btn, !hasAllInput && s.disabled]} disabled={!hasAllInput}>
+                        <Subheading style={s.btnText}>Sign up</Subheading>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+        </KeyboardAvoidingView>
+    );
+}
 
-  topImageContainer: {
-    backgroundColor: '#FCC8D1',
-    width: '100%',
-    height: 350,
-    borderBottomLeftRadius: 60,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-  },
-
-  logo: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'contain',
-    marginTop: 60,
-  },
-
-  topText: {
-    position: 'absolute',
-    top: 300,
-    fontSize: 18,
-    color: '#D14D72',
-    zIndex: 1,
-  },
-
-  container2: {},
-
-  pinkRectangle: {
-    position: 'absolute',
-    right: 0,
-    width: 117,
-    height: 75,
-    backgroundColor: '#D14D72',
-  },
-
-  roundedRectangle: {
-    position: 'absolute',
-    right: 0,
-    width: 117,
-    height: 75,
-    backgroundColor: '#fff',
-    borderTopRightRadius: 60,
-  },
-
-  container3: {
-    marginTop: 10,
-    width: '100%',
-    alignItems: 'center',
-  },
-
-  buttonWrapper: {
-    flexDirection: 'row',
-    width: '90%',
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FEF2F4',
-    overflow: 'hidden',
-    marginTop: 20,
-  },
-
-  loginRectangle: {
-    position: 'absolute',
-    width: '50%',
-    height: '100%',
-    borderRadius: 25,
-    backgroundColor: '#FCC8D1',
-    left: '50%', 
-  },
-
-  slideLeft: {
-    transform: [{ translateX: '-100%' }], 
-  },
-
-  touchable: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  buttonText: {
-    fontWeight: 'bold',
-    fontSize: 20,
-  },
-
-  activeText: {
-    color: 'black',
-  },
-
-  inactiveText: {
-    color: '#fcc8d1',
-  },
-
-  inputContainer: {
-    alignSelf: 'center',
-    width: '90%',
-    height: 60,
-    backgroundColor: '#fff',
-    borderRadius: 40,
-    shadowColor: '#000',
-    shadowRadius: 3.84,
-    elevation: 5,
-    paddingHorizontal: 20,
-    justifyContent: 'center',
-    marginVertical: 10, 
-  },
-
-  textInput: {
-    fontSize: 16,
-  },
-
-  button: {
-    marginTop: 20,
-    backgroundColor: '#FCC8D1',
-    borderRadius: 40,
-    shadowRadius: 3.84,
-    elevation: 5,
-    paddingVertical: 15,
-    width: '40%',
-    alignSelf: 'center',
-    alignItems: 'center',
-  },
-
-  orText: {
-    textAlign: 'center',
-    marginTop: 15,
-    marginBottom: 5,
-    color: '#000',
-    fontSize: 16,
-  },
-
-  iconRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-
-  iconContainer: {
-    marginHorizontal: 10,
-  }
+const s = StyleSheet.create({
+    // General Layout
+    flex1: { flex: 1 },
+    scrollContainer: { 
+        flexGrow: 1, 
+        paddingBottom: 40 
+    },
+    container: { 
+        flex: 1,
+         backgroundColor: '#fff' 
+    },
+    top: {    // Top Section
+        backgroundColor: PRIMARY_COLOR, 
+        width: '100%', 
+        height: 350,
+        borderBottomLeftRadius: 60, 
+        alignItems: 'center', 
+        justifyContent: 'flex-start'
+    },
+    logo: { 
+        width: '80%', 
+        height: 300, 
+        position: 'absolute', 
+        marginTop: 30, 
+        resizeMode: 'contain' 
+    },
+    topText: { 
+        position: 'absolute', 
+        top: 300, 
+        fontSize: 18, 
+        color: SECONDARY_COLOR,
+        zIndex: 1 
+    },
+    pinkRectangle: {     // Design Shapes
+        position: 'absolute', 
+        right: 0, width: 117, 
+        height: 75, 
+        backgroundColor: SECONDARY_COLOR
+    },
+    roundedRectangle: { 
+        position: 'absolute', 
+        right: 0, width: 117, 
+        height: 75, 
+        backgroundColor: '#fff', 
+        borderTopRightRadius: 60 
+    },
+    toggleRow: {    // Toggle Buttons
+        flexDirection: 'row', 
+        width: '90%', 
+        alignSelf: 'center',
+        marginTop: 40,
+        marginBottom: 20, 
+        borderRadius: 30,
+        backgroundColor: '#FEF2F4', 
+        overflow: 'hidden'
+    },
+    toggleBtn: { 
+        flex: 1, 
+        paddingVertical: 12, 
+        alignItems: 'center' 
+    },
+    toggleText: { 
+        fontSize: 20, 
+        color: PRIMARY_COLOR 
+    },
+    activeToggle: { 
+        backgroundColor: PRIMARY_COLOR 
+    },
+    activeText: { 
+        color: '#000' 
+    },
+    inputWrap: {    // Inputs
+        alignSelf: 'center', 
+        width: '90%',
+         marginTop: 12, 
+         backgroundColor: '#fff',
+        borderRadius: 40, 
+        paddingHorizontal: 20, 
+        justifyContent: 'center',
+        height: 60, 
+        elevation: 3
+    },
+    input: { fontSize: 16 },
+    inputFont: { 
+        fontFamily: 'Quicksand-Regular' 
+    },
+    err: {
+        color: SECONDARY_COLOR, 
+        fontSize: 12, 
+        marginTop: 6, 
+        marginLeft: 8
+    },
+    btn: {     // Button
+        marginTop: 18, 
+        backgroundColor: 
+        PRIMARY_COLOR, 
+        borderRadius: 40,
+        paddingVertical: 14, 
+        width: '40%', 
+        alignSelf: 'center',
+        alignItems: 'center', 
+        elevation: 3
+    },
+    btnText: { fontSize: 16 },
+    disabled: { opacity: 0.6 }
 });
-
-export default SignUp;
