@@ -18,15 +18,12 @@ export default function TabLayout() {
           tabBarStyle: {
             borderTopWidth: 1,
             borderTopColor: "black",
-            height: 90,
+            height: 100,
             paddingBottom: 30,
             paddingTop: 10,
           },
-          // fontWeight removed, assuming Subheading/BodyText handles it
           tabBarLabelStyle: {
             fontSize: 12,
-            // Custom font applied via component is usually better than this style property
-            // fontWeight: "600", 
           },
         }}
       >
@@ -149,7 +146,6 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     color: "#000",
-    // Removed fontWeight: "bold"
     textAlign: "center",
     marginTop: 10,
     marginBottom: 25,
@@ -178,7 +174,6 @@ const styles = StyleSheet.create({
   boxText: {
     fontSize: 12,
     color: "#000000ff",
-    // Removed fontWeight: "600"
     marginTop: 5,
   },
 });

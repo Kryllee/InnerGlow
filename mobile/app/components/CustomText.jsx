@@ -32,8 +32,7 @@ export const BodyText = ({ children, style, ...props }) => (
     </Text>
 );
 
-// --- Default Export (To satisfy Expo Router) ---
-// We create a simple wrapper that uses the base body style as the default export.
+// --- Default Export  ---
 const CustomText = ({ children, style, ...props }) => (
     <Text 
         style={[BASE_STYLES.body, style]} 

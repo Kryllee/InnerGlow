@@ -184,7 +184,7 @@ const s = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 8,
     position: 'absolute',
-    top: 50,
+    top: 40,
     left: 10,
     right: 10,
     flexDirection: 'row',

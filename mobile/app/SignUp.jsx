@@ -128,7 +128,6 @@ const s = StyleSheet.create({
         height: 300, 
         position: 'absolute', 
         marginTop: 30, 
-        resizeMode: 'contain' 
     },
     topText: { 
         position: 'absolute', 

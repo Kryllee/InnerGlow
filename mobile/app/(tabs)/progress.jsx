@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
     },
     affirmationText: {
         fontSize: 28,
+        alignItems: 'center',
         fontFamily: 'Quicksand-Bold', 
         color: '#333',
     },

@@ -6,7 +6,6 @@ import { useEffect } from 'react';
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  // Load ALL Quicksand font files
   const [fontsLoaded] = useFonts({
     'Quicksand-Bold': require('../assets/fonts/Quicksand-Bold.ttf'), 
     'Quicksand-SemiBold': require('../assets/fonts/Quicksand-SemiBold.ttf'), 
