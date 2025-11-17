@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,22 +12,45 @@ const PRIMARY_COLOR = '#FCC8D1';
 const SECONDARY_COLOR = '#D14D72';
 const TEXT_INACTIVE_COLOR = '#fcc8d1';
 
+// Track if splash has been shown (persists across component remounts)
+let hasShownSplash = false;
+
 const Index = () => {
     const [mode, setMode] = useState('login');
-    const [showIntro, setShowIntro] = useState(true);
+    const [showIntro, setShowIntro] = useState(!hasShownSplash);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [activeButton, setActiveButton] = useState('login');
     const router = useRouter();
 
-    useEffect(() => { setTimeout(() => setShowIntro(false), INTRO_DELAY); }, []);
+    useEffect(() => {
+        if (!hasShownSplash) {
+            setTimeout(() => {
+                setShowIntro(false);
+                hasShownSplash = true;
+            }, INTRO_DELAY);
+        }
+    }, []);
 
-    const goSignUp = () => { setMode('signup'); setActiveButton('signup'); router.push('./SignUp'); };
-    const handleLogin = () => { setActiveButton('login'); };
-    const handleSignUp = () => { setActiveButton('signup'); router.push('./SignUp'); };
-    const handleFinalLogin = () => { router.replace({ pathname: '/(tabs)/home', params: { justLoggedIn: 'true' } }); };
+    const goSignUp = () => { 
+        setMode('signup'); 
+        setActiveButton('signup'); 
+        router.push('./SignUp'); 
+    };
+    
+    const handleLogin = () => { 
+        setActiveButton('login'); 
+    };
+    
+    const handleSignUp = () => { 
+        setActiveButton('signup'); 
+        router.push('./SignUp'); 
+    };
+    
     const submit = () => {
-        if (!username.trim() || !password.trim()) return Alert.alert('Required', 'Please enter username/email and password');
+        if (!username.trim() || !password.trim()) {
+            return Alert.alert('Required', 'Please enter username/email and password');
+        }
         router.replace('/(tabs)/home');
     };
 
@@ -53,31 +76,53 @@ const Index = () => {
                     <View style={s.toggleRow}>
                         <TouchableOpacity
                             style={[s.toggleBtn, !isSignUp && s.activeToggle]}
-                            onPress={() => { setMode('login'); handleLogin(); }}
+                            onPress={() => { 
+                                setMode('login'); 
+                                handleLogin(); 
+                            }}
                         >
                             <Subheading style={[s.toggleText, !isSignUp && s.activeText]}>Log in</Subheading>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[s.toggleBtn, isSignUp && s.activeToggle]}
-                            onPress={() => { goSignUp(); handleSignUp(); }}
+                            onPress={() => { 
+                                goSignUp(); 
+                                handleSignUp(); 
+                            }}
                         >
                             <Subheading style={[s.toggleText, isSignUp ? s.activeText : s.inactiveText]}>Sign up</Subheading>
                         </TouchableOpacity>
                     </View>
 
                     <View style={s.inputContainer}>
-                        <TextInput placeholder="Username or Email" keyboardType="email-address" style={[s.input, s.inputFont]} onChangeText={setUsername}/>
+                        <TextInput 
+                            placeholder="Username or Email" 
+                            keyboardType="email-address" 
+                            style={[s.input, s.inputFont]} 
+                            onChangeText={setUsername}
+                            value={username}
+                        />
                     </View>
 
                     <View style={s.inputContainer}>
-                        <TextInput placeholder="Password" secureTextEntry style={[s.input, s.inputFont]} onChangeText={setPassword}/>
+                        <TextInput 
+                            placeholder="Password" 
+                            secureTextEntry 
+                            style={[s.input, s.inputFont]} 
+                            onChangeText={setPassword}
+                            value={password}
+                        />
                     </View>
 
                     <TouchableOpacity onPress={() => {}} style={s.forgotPassword}>
                         <BodyText style={s.forgotPasswordText}>Forgot password?</BodyText>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={submit} style={[s.btn, !hasInput && s.disabled]} disabled={!hasInput}>
+                    <TouchableOpacity 
+                        onPress={submit} 
+                        style={[s.btn, !hasInput && s.disabled]} 
+                        disabled={!hasInput}
+                    >
                         <Subheading style={s.btnText}>Log in</Subheading>
                     </TouchableOpacity>
 
@@ -122,16 +167,17 @@ const s = StyleSheet.create({
         marginTop: 30 
     },
     topText: { 
-        position: 'fixed', 
+        position: 'absolute', 
         top: 300, 
         fontSize: 18,
-         color: SECONDARY_COLOR, 
-         zIndex: 1 
-        },
+        color: SECONDARY_COLOR, 
+        zIndex: 1 
+    },
     // Design Shapes
     pinkRectangle: { 
         position: 'absolute', 
-        right: 0, width: SHAPE_WIDTH, 
+        right: 0, 
+        width: SHAPE_WIDTH, 
         height: SHAPE_HEIGHT, 
         backgroundColor: SECONDARY_COLOR 
     },
@@ -154,11 +200,20 @@ const s = StyleSheet.create({
         marginTop: 30,
         alignSelf: 'center',
     },
-    toggleBtn: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    activeToggle: { backgroundColor: PRIMARY_COLOR },
-    slideRight: { transform: [{ translateX: '100%' }] },
-    toggleText: { fontSize: 20 },
-    activeText: { color: 'black' },
+    toggleBtn: { 
+        flex: 1, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    },
+    activeToggle: { 
+        backgroundColor: PRIMARY_COLOR 
+    },
+    toggleText: { 
+        fontSize: 20 
+    },
+    activeText: { 
+        color: 'black' 
+    },
     inactiveText: { color: TEXT_INACTIVE_COLOR },
     // Inputs
     inputContainer: {
@@ -177,19 +232,17 @@ const s = StyleSheet.create({
     },
     input: { fontSize: 16 },
     inputFont: { fontFamily: 'Quicksand-Regular' },
-
     // Forgot Password
     forgotPassword: {
-         alignSelf: 'flex-end', 
-         marginRight: '5%', 
-         marginBottom: 10 
-        },
+        alignSelf: 'flex-end', 
+        marginRight: '5%', 
+        marginBottom: 10 
+    },
     forgotPasswordText: { 
         color: SECONDARY_COLOR, 
         fontSize: 16, 
         textDecorationLine: 'underline'
-     },
-
+    },
     // Button
     btn: {
         marginTop: 20,
@@ -217,7 +270,7 @@ const s = StyleSheet.create({
         justifyContent: 'center', 
         alignItems: 'center', 
         marginTop: 20
-     },
+    },
     iconContainer: { 
         marginHorizontal: 10 
     },
