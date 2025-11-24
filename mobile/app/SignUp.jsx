@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Subheading, BodyText } from './components/CustomText';
+import { FONTS } from './constants/fonts';
 import { Ionicons } from '@expo/vector-icons';
 
 const PRIMARY_COLOR = '#FCC8D1';
@@ -90,7 +91,7 @@ export default function SignUp() {
                     {/* Password Input */}
                     <View style={s.inputWrap}>
                         <TextInput
-                            placeholder="Password" secureTextEntry style={[s.input, s.inputFont]}  value={password} onChangeText={handleChange(setPassword, 'p')} />
+                            placeholder="Password" secureTextEntry style={[s.input, s.inputFont]} value={password} onChangeText={handleChange(setPassword, 'p')} />
                         {errors.p && <BodyText style={s.err}>Required</BodyText>}
                     </View>
 
@@ -107,103 +108,103 @@ export default function SignUp() {
 const s = StyleSheet.create({
     // General Layout
     flex1: { flex: 1 },
-    scrollContainer: { 
-        flexGrow: 1, 
-        paddingBottom: 40 
+    scrollContainer: {
+        flexGrow: 1,
+        paddingBottom: 40
     },
-    container: { 
+    container: {
         flex: 1,
-         backgroundColor: '#fff' 
+        backgroundColor: '#fff'
     },
     top: {    // Top Section
-        backgroundColor: PRIMARY_COLOR, 
-        width: '100%', 
+        backgroundColor: PRIMARY_COLOR,
+        width: '100%',
         height: 350,
-        borderBottomLeftRadius: 60, 
-        alignItems: 'center', 
+        borderBottomLeftRadius: 60,
+        alignItems: 'center',
         justifyContent: 'flex-start'
     },
-    logo: { 
-        width: '80%', 
-        height: 300, 
-        position: 'absolute', 
-        marginTop: 30, 
+    logo: {
+        width: '80%',
+        height: 300,
+        position: 'absolute',
+        marginTop: 30,
     },
-    topText: { 
-        position: 'absolute', 
-        top: 300, 
-        fontSize: 18, 
+    topText: {
+        position: 'absolute',
+        top: 300,
+        fontSize: 18,
         color: SECONDARY_COLOR,
-        zIndex: 1 
+        zIndex: 1
     },
     pinkRectangle: {     // Design Shapes
-        position: 'absolute', 
-        right: 0, width: 117, 
-        height: 75, 
+        position: 'absolute',
+        right: 0, width: 117,
+        height: 75,
         backgroundColor: SECONDARY_COLOR
     },
-    roundedRectangle: { 
-        position: 'absolute', 
-        right: 0, width: 117, 
-        height: 75, 
-        backgroundColor: '#fff', 
-        borderTopRightRadius: 60 
+    roundedRectangle: {
+        position: 'absolute',
+        right: 0, width: 117,
+        height: 75,
+        backgroundColor: '#fff',
+        borderTopRightRadius: 60
     },
     toggleRow: {    // Toggle Buttons
-        flexDirection: 'row', 
-        width: '90%', 
+        flexDirection: 'row',
+        width: '90%',
         alignSelf: 'center',
         marginTop: 40,
-        marginBottom: 20, 
+        marginBottom: 20,
         borderRadius: 30,
-        backgroundColor: '#FEF2F4', 
+        backgroundColor: '#FEF2F4',
         overflow: 'hidden'
     },
-    toggleBtn: { 
-        flex: 1, 
-        paddingVertical: 12, 
-        alignItems: 'center' 
+    toggleBtn: {
+        flex: 1,
+        paddingVertical: 12,
+        alignItems: 'center'
     },
-    toggleText: { 
-        fontSize: 20, 
-        color: PRIMARY_COLOR 
+    toggleText: {
+        fontSize: 20,
+        color: PRIMARY_COLOR
     },
-    activeToggle: { 
-        backgroundColor: PRIMARY_COLOR 
+    activeToggle: {
+        backgroundColor: PRIMARY_COLOR
     },
-    activeText: { 
-        color: '#000' 
+    activeText: {
+        color: '#000'
     },
     inputWrap: {    // Inputs
-        alignSelf: 'center', 
+        alignSelf: 'center',
         width: '90%',
-         marginTop: 12, 
-         backgroundColor: '#fff',
-        borderRadius: 40, 
-        paddingHorizontal: 20, 
+        marginTop: 12,
+        backgroundColor: '#fff',
+        borderRadius: 40,
+        paddingHorizontal: 20,
         justifyContent: 'center',
-        height: 60, 
+        height: 60,
         elevation: 3
     },
     input: { fontSize: 16 },
-    inputFont: { 
-        fontFamily: 'Quicksand-Regular' 
+    inputFont: {
+        fontFamily: FONTS.regular
     },
     err: {
-        color: SECONDARY_COLOR, 
-        fontSize: 12, 
-        marginTop: 6, 
+        color: SECONDARY_COLOR,
+        fontSize: 12,
+        marginTop: 6,
         marginLeft: 8
     },
     btn: {     // Button
-        marginTop: 18, 
-        backgroundColor: 
-        PRIMARY_COLOR, 
+        marginTop: 18,
+        backgroundColor:
+            PRIMARY_COLOR,
         borderRadius: 40,
-        paddingVertical: 14, 
-        width: '40%', 
+        paddingVertical: 14,
+        width: '40%',
         alignSelf: 'center',
-        alignItems: 'center', 
+        alignItems: 'center',
         elevation: 3
     },
     btnText: { fontSize: 16 },

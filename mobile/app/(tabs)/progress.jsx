@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ImageBackground, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { FontAwesome5} from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { FONTS } from '../constants/fonts';
 
 const progress = () => {
     return (
@@ -88,7 +89,7 @@ const styles = StyleSheet.create({
     },
     container: {
         paddingHorizontal: 20,
-        paddingTop: 50, 
+        paddingTop: 50,
         paddingBottom: 80
     },
     headerCard: {
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
         padding: 20,
         marginBottom: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 }, 
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 3.84,
         elevation: 5,
@@ -117,14 +118,14 @@ const styles = StyleSheet.create({
     },
     affirmationTitle: {
         fontSize: 18,
-        fontFamily: 'Quicksand-SemiBold', 
-        color: '#E78AA1', 
+        fontFamily: FONTS.semiBold,
+        color: '#E78AA1',
         marginLeft: 5,
     },
     affirmationText: {
         fontSize: 28,
         alignItems: 'center',
-        fontFamily: 'Quicksand-Bold', 
+        fontFamily: FONTS.bold,
         color: '#333',
     },
     kikiImage: {
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     statLabel: {
         fontSize: 12,
         color: '#333',
-        fontFamily: 'Quicksand-Regular', 
+        fontFamily: FONTS.regular,
     },
     statCard: {
         flex: 1,
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     },
     statNumber: {
         fontSize: 24,
-        fontFamily: 'Quicksand-Bold', 
+        fontFamily: FONTS.bold,
         color: '#333',
     },
     recentHeader: {
@@ -175,13 +176,13 @@ const styles = StyleSheet.create({
     },
     recentTitle: {
         fontSize: 20,
-        fontFamily: 'Quicksand-Bold', 
+        fontFamily: FONTS.bold,
         color: '#333',
     },
     viewAllText: {
         fontSize: 14,
-        color: '#D14D72', 
-        fontFamily: 'Quicksand-SemiBold',
+        color: '#D14D72',
+        fontFamily: FONTS.semiBold,
     },
     // Entry Card Styles
     entryCard: {
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     },
     entryType: {
         fontSize: 16,
-        fontFamily: 'Quicksand-SemiBold', 
+        fontFamily: FONTS.semiBold,
     },
     journalType: {
         color: '#D14D72'
@@ -215,13 +216,13 @@ const styles = StyleSheet.create({
     entryTime: {
         fontSize: 12,
         color: '#666',
-        fontFamily: 'Quicksand-Regular', 
+        fontFamily: FONTS.regular,
     },
     entryText: {
         fontSize: 14,
         color: '#333',
         lineHeight: 20,
-        fontFamily: 'Quicksand-Regular', 
+        fontFamily: FONTS.regular,
     },
     navItem: {
         padding: 5,

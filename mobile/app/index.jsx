@@ -3,6 +3,7 @@ import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingV
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from './components/CustomText';
+import { FONTS } from './constants/fonts';
 import SplashScreen from './components/SplashScreen';
 
 const INTRO_DELAY = 2000;
@@ -32,21 +33,21 @@ const Index = () => {
         }
     }, []);
 
-    const goSignUp = () => { 
-        setMode('signup'); 
-        setActiveButton('signup'); 
-        router.push('./SignUp'); 
+    const goSignUp = () => {
+        setMode('signup');
+        setActiveButton('signup');
+        router.push('./SignUp');
     };
-    
-    const handleLogin = () => { 
-        setActiveButton('login'); 
+
+    const handleLogin = () => {
+        setActiveButton('login');
     };
-    
-    const handleSignUp = () => { 
-        setActiveButton('signup'); 
-        router.push('./SignUp'); 
+
+    const handleSignUp = () => {
+        setActiveButton('signup');
+        router.push('./SignUp');
     };
-    
+
     const submit = () => {
         if (!username.trim() || !password.trim()) {
             return Alert.alert('Required', 'Please enter username/email and password');
@@ -76,18 +77,18 @@ const Index = () => {
                     <View style={s.toggleRow}>
                         <TouchableOpacity
                             style={[s.toggleBtn, !isSignUp && s.activeToggle]}
-                            onPress={() => { 
-                                setMode('login'); 
-                                handleLogin(); 
+                            onPress={() => {
+                                setMode('login');
+                                handleLogin();
                             }}
                         >
                             <Subheading style={[s.toggleText, !isSignUp && s.activeText]}>Log in</Subheading>
                         </TouchableOpacity>
                         <TouchableOpacity
                             style={[s.toggleBtn, isSignUp && s.activeToggle]}
-                            onPress={() => { 
-                                goSignUp(); 
-                                handleSignUp(); 
+                            onPress={() => {
+                                goSignUp();
+                                handleSignUp();
                             }}
                         >
                             <Subheading style={[s.toggleText, isSignUp ? s.activeText : s.inactiveText]}>Sign up</Subheading>
@@ -95,32 +96,32 @@ const Index = () => {
                     </View>
 
                     <View style={s.inputContainer}>
-                        <TextInput 
-                            placeholder="Username or Email" 
-                            keyboardType="email-address" 
-                            style={[s.input, s.inputFont]} 
+                        <TextInput
+                            placeholder="Username or Email"
+                            keyboardType="email-address"
+                            style={[s.input, s.inputFont]}
                             onChangeText={setUsername}
                             value={username}
                         />
                     </View>
 
                     <View style={s.inputContainer}>
-                        <TextInput 
-                            placeholder="Password" 
-                            secureTextEntry 
-                            style={[s.input, s.inputFont]} 
+                        <TextInput
+                            placeholder="Password"
+                            secureTextEntry
+                            style={[s.input, s.inputFont]}
                             onChangeText={setPassword}
                             value={password}
                         />
                     </View>
 
-                    <TouchableOpacity onPress={() => {}} style={s.forgotPassword}>
+                    <TouchableOpacity onPress={() => { }} style={s.forgotPassword}>
                         <BodyText style={s.forgotPasswordText}>Forgot password?</BodyText>
                     </TouchableOpacity>
 
-                    <TouchableOpacity 
-                        onPress={submit} 
-                        style={[s.btn, !hasInput && s.disabled]} 
+                    <TouchableOpacity
+                        onPress={submit}
+                        style={[s.btn, !hasInput && s.disabled]}
                         disabled={!hasInput}
                     >
                         <Subheading style={s.btnText}>Log in</Subheading>
@@ -129,12 +130,12 @@ const Index = () => {
                     <BodyText style={s.orText}>or login with</BodyText>
 
                     <View style={s.iconRow}>
-                        <TouchableOpacity style={s.iconContainer} onPress={() => {}}>
+                        <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
                             <View>
                                 <Ionicons name="logo-google" size={30} color="#DB4437" />
                             </View>
                         </TouchableOpacity>
-                        <TouchableOpacity style={s.iconContainer} onPress={() => {}}>
+                        <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
                             <View>
                                 <Ionicons name="logo-facebook" size={30} color="#1877F2" />
                             </View>
@@ -160,34 +161,34 @@ const s = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'flex-start',
     },
-    logo: { 
-        width: '80%', 
-        height: 300, 
-        position: 'absolute', 
-        marginTop: 30 
+    logo: {
+        width: '80%',
+        height: 300,
+        position: 'absolute',
+        marginTop: 30
     },
-    topText: { 
-        position: 'absolute', 
-        top: 300, 
+    topText: {
+        position: 'absolute',
+        top: 300,
         fontSize: 18,
-        color: SECONDARY_COLOR, 
-        zIndex: 1 
+        color: SECONDARY_COLOR,
+        zIndex: 1
     },
     // Design Shapes
-    pinkRectangle: { 
-        position: 'absolute', 
-        right: 0, 
-        width: SHAPE_WIDTH, 
-        height: SHAPE_HEIGHT, 
-        backgroundColor: SECONDARY_COLOR 
+    pinkRectangle: {
+        position: 'absolute',
+        right: 0,
+        width: SHAPE_WIDTH,
+        height: SHAPE_HEIGHT,
+        backgroundColor: SECONDARY_COLOR
     },
-    roundedRectangle: { 
-        position: 'absolute', 
-        right: 0, 
-        width: SHAPE_WIDTH, 
-        height: SHAPE_HEIGHT, 
-        backgroundColor: '#fff', 
-        borderTopRightRadius: 60 
+    roundedRectangle: {
+        position: 'absolute',
+        right: 0,
+        width: SHAPE_WIDTH,
+        height: SHAPE_HEIGHT,
+        backgroundColor: '#fff',
+        borderTopRightRadius: 60
     },
     // Toggle Buttons
     toggleRow: {
@@ -200,19 +201,19 @@ const s = StyleSheet.create({
         marginTop: 30,
         alignSelf: 'center',
     },
-    toggleBtn: { 
-        flex: 1, 
-        justifyContent: 'center', 
-        alignItems: 'center' 
+    toggleBtn: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center'
     },
-    activeToggle: { 
-        backgroundColor: PRIMARY_COLOR 
+    activeToggle: {
+        backgroundColor: PRIMARY_COLOR
     },
-    toggleText: { 
-        fontSize: 20 
+    toggleText: {
+        fontSize: 20
     },
-    activeText: { 
-        color: 'black' 
+    activeText: {
+        color: 'black'
     },
     inactiveText: { color: TEXT_INACTIVE_COLOR },
     // Inputs
@@ -231,16 +232,16 @@ const s = StyleSheet.create({
         marginVertical: 10,
     },
     input: { fontSize: 16 },
-    inputFont: { fontFamily: 'Quicksand-Regular' },
+    inputFont: { fontFamily: FONTS.regular },
     // Forgot Password
     forgotPassword: {
-        alignSelf: 'flex-end', 
-        marginRight: '5%', 
-        marginBottom: 10 
+        alignSelf: 'flex-end',
+        marginRight: '5%',
+        marginBottom: 10
     },
-    forgotPasswordText: { 
-        color: SECONDARY_COLOR, 
-        fontSize: 16, 
+    forgotPasswordText: {
+        color: SECONDARY_COLOR,
+        fontSize: 16,
         textDecorationLine: 'underline'
     },
     // Button
@@ -258,21 +259,21 @@ const s = StyleSheet.create({
     btnText: { fontSize: 15 },
     disabled: { opacity: 0.6 },
     // Socials
-    orText: { 
-        textAlign: 'center', 
-        marginTop: 15, 
-        marginBottom: 5, 
-        color: '#000', 
-        fontSize: 16 
+    orText: {
+        textAlign: 'center',
+        marginTop: 15,
+        marginBottom: 5,
+        color: '#000',
+        fontSize: 16
     },
-    iconRow: { 
-        flexDirection: 'row', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
+    iconRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
         marginTop: 20
     },
-    iconContainer: { 
-        marginHorizontal: 10 
+    iconContainer: {
+        marginHorizontal: 10
     },
 });
 

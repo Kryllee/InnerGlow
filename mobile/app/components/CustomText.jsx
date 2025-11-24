@@ -1,22 +1,23 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
+import { FONTS } from '../constants/fonts';
 
 const BASE_STYLES = StyleSheet.create({
     subheading: {
-        fontFamily: 'Quicksand-SemiBold', 
-        fontSize: 20, 
+        fontFamily: FONTS.semiBold,
+        fontSize: 20,
     },
     body: {
-        fontFamily: 'Quicksand-Regular', 
-        fontSize: 16, 
+        fontFamily: FONTS.regular,
+        fontSize: 16,
     },
 });
 
 // --- Named Exports (For utilities) ---
 
 export const Subheading = ({ children, style, ...props }) => (
-    <Text 
-        style={[BASE_STYLES.subheading, style]} 
+    <Text
+        style={[BASE_STYLES.subheading, style]}
         {...props}
     >
         {children}
@@ -24,8 +25,8 @@ export const Subheading = ({ children, style, ...props }) => (
 );
 
 export const BodyText = ({ children, style, ...props }) => (
-    <Text 
-        style={[BASE_STYLES.body, style]} 
+    <Text
+        style={[BASE_STYLES.body, style]}
         {...props}
     >
         {children}
@@ -34,8 +35,8 @@ export const BodyText = ({ children, style, ...props }) => (
 
 // --- Default Export  ---
 const CustomText = ({ children, style, ...props }) => (
-    <Text 
-        style={[BASE_STYLES.body, style]} 
+    <Text
+        style={[BASE_STYLES.body, style]}
         {...props}
     >
         {children}
@@ -43,3 +44,4 @@ const CustomText = ({ children, style, ...props }) => (
 );
 
 export default CustomText;
+
