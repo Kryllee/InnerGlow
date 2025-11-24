@@ -3,3 +3,4 @@ backend/.env
 
 # Node modules
 backend/node_modules/
+node_modules/
