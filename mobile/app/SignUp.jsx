@@ -12,6 +12,7 @@ export default function SignUp() {
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({ n: false, u: false, p: false });
     const [activeButton, setActiveButton] = useState('signup');
     const router = useRouter();
@@ -91,7 +92,22 @@ export default function SignUp() {
                     {/* Password Input */}
                     <View style={s.inputWrap}>
                         <TextInput
-                            placeholder="Password" secureTextEntry style={[s.input, s.inputFont]} value={password} onChangeText={handleChange(setPassword, 'p')} />
+                            placeholder="Password"
+                            secureTextEntry={!showPassword}
+                            style={[s.input, s.inputFont, s.passwordInput]}
+                            value={password}
+                            onChangeText={handleChange(setPassword, 'p')}
+                        />
+                        <TouchableOpacity
+                            style={s.eyeIcon}
+                            onPress={() => setShowPassword(!showPassword)}
+                        >
+                            <Ionicons
+                                name={showPassword ? "eye-off" : "eye"}
+                                size={24}
+                                color="#999"
+                            />
+                        </TouchableOpacity>
                         {errors.p && <BodyText style={s.err}>Required</BodyText>}
                     </View>
 
@@ -184,22 +200,31 @@ const s = StyleSheet.create({
         paddingHorizontal: 20,
         justifyContent: 'center',
         height: 60,
-        elevation: 3
+        elevation: 3,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    input: { fontSize: 16 },
+    input: {
+        fontSize: 16,
+        flex: 1,
+    },
     inputFont: {
         fontFamily: FONTS.regular
+    },
+    passwordInput: { paddingRight: 10 },
+    eyeIcon: {
+        padding: 5,
     },
     err: {
         color: SECONDARY_COLOR,
         fontSize: 12,
-        marginTop: 6,
-        marginLeft: 8
+        position: 'absolute',
+        bottom: -20,
+        left: 8,
     },
     btn: {     // Button
-        marginTop: 18,
-        backgroundColor:
-            PRIMARY_COLOR,
+        marginTop: 30,
+        backgroundColor: PRIMARY_COLOR,
         borderRadius: 40,
         paddingVertical: 14,
         width: '40%',

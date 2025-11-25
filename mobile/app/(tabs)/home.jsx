@@ -1,121 +1,110 @@
 import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal } from "react-native";
 import React, { useState, useEffect } from "react";
 import { BlurView } from 'expo-blur';
-import { Subheading, BodyText } from '../components/CustomText'; // Custom text components
+import { Subheading, BodyText } from '../components/CustomText';
 
 const Home = () => {
     const [activeTab, setActiveTab] = useState("forYou");
     const [showPopup, setShowPopup] = useState(false);
 
     useEffect(() => {
-        // Show popup shortly after component mounts
-        const timer = setTimeout(() => setShowPopup(true), 100); 
+        const timer = setTimeout(() => setShowPopup(true), 100);
         return () => clearTimeout(timer);
     }, []);
 
-    const isForYou = activeTab === "forYou";
+    const isForYouActive = activeTab === "forYou";
 
     return (
-        <View style={s.container}>
-            {/* Tab Navigation */}
-            <View style={s.tabBar}>
+        <View style={styles.container}>
+            <View style={styles.tabBar}>
                 <TouchableOpacity onPress={() => setActiveTab("forYou")}>
-                    {/* Subheading for tab name */}
-                    <Subheading style={[s.tabText, isForYou && s.activeTabText]}>
-                        For you
-                    </Subheading>
+                    <Subheading style={isForYouActive ? styles.activeTabText : styles.tabText}>For you</Subheading>
                 </TouchableOpacity>
-
                 <TouchableOpacity onPress={() => setActiveTab("board")}>
-                    {/* Subheading for tab name */}
-                    <Subheading style={[s.tabText, !isForYou && s.activeTabText]}>
-                        Board Name
-                    </Subheading>
+                    <Subheading style={isForYouActive ? styles.tabText : styles.activeTabText}>Board Name</Subheading>
                 </TouchableOpacity>
             </View>
 
-            {/* Content */}
-            <View style={s.content}>
-                {isForYou ? (
-                    <ScrollView contentContainerStyle={s.gridContainer}>
-                        <View style={s.grid}>
-                            {/* Left Column */}
-                            <View style={s.column}>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/1image.png")} style={[s.image, { height: 174 }]} /></TouchableOpacity>
+            <View style={styles.content}>
+                {isForYouActive ? (
+                    <ScrollView contentContainerStyle={styles.gridContainer}>
+                        <View style={styles.grid}>
+                            <View style={styles.column}>
+                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/1image.png")} style={styles.image1} /></TouchableOpacity>
                                 <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/3image.png")} style={[s.image, { height: 280 }]} />
-                                    {/* BodyText for small label */}
-                                    <BodyText style={s.paidLinkText}>Paid Link</BodyText>
+                                    <Image source={require("../(tabs)/assets/images/3image.png")} style={styles.image3} />
+                                    <BodyText style={styles.paidLinkText}>Paid Link</BodyText>
                                 </TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/5image.png")} style={[s.image, { height: 174 }]} /></TouchableOpacity>
+                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/5image.png")} style={styles.image5} /></TouchableOpacity>
                                 <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/7image.png")} style={[s.image, s.smallImage]} />
-                                    {/* BodyText for positioned label */}
-                                    <BodyText style={s.moreLikeThis}>More like this</BodyText>
+                                    <Image source={require("../(tabs)/assets/images/7image.png")} style={styles.smallImage} />
+                                    <BodyText style={styles.moreLikeThis}>More like this</BodyText>
                                 </TouchableOpacity>
                             </View>
-
-                            {/* Right Column */}
-                            <View style={s.column}>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/2image.png")} style={[s.image, { height: 280 }]} /></TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/4image.png")} style={[s.image, { height: 101 }]} /></TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/6image.png")} style={[s.image, { height: 280 }]} /></TouchableOpacity>
+                            <View style={styles.column}>
+                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/2image.png")} style={styles.image2} /></TouchableOpacity>
+                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/4image.png")} style={styles.image4} /></TouchableOpacity>
+                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/6image.png")} style={styles.image6} /></TouchableOpacity>
                                 <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/8image.png")} style={[s.image, s.smallImage]} />
-                                    {/* BodyText for positioned label */}
-                                    <BodyText style={s.moreLikeThis}>More like this</BodyText>
+                                    <Image source={require("../(tabs)/assets/images/8image.png")} style={styles.smallImage} />
+                                    <BodyText style={styles.moreLikeThis}>More like this</BodyText>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     </ScrollView>
                 ) : (
-                    // BodyText for board message
-                    <BodyText style={s.boardText}>
-                        Nothing here yet.{"\n"}Pin a post to get started!
-                    </BodyText>
+                    <BodyText style={styles.boardText}>Nothing here yet.{"\n"}Pin a post to get started!</BodyText>
                 )}
             </View>
 
-            {/* POPUP */}
-            <Modal transparent visible={showPopup} animationType="fade">
-                <BlurView intensity={15} tint="light" style={s.overlay}>
-                    <View style={s.popup}>
-                        <View style={s.titleBox}>
-                            {/* Subheading for popup title */}
-                            <Subheading style={s.popupTitle}>Quick Mood Check-in</Subheading>
+            <Modal transparent={true} visible={showPopup} animationType="fade">
+                <View style={styles.overlay}>
+                    <BlurView intensity={5} style={styles.blurView}>
+                        <View style={styles.blurFallback} />
+                    </BlurView>
+                    <View style={styles.popup}>
+                        <View style={styles.titleBox}>
+                            <Subheading style={styles.popupTitle}>Quick Mood Check-in</Subheading>
                         </View>
-
-                        <View style={s.moodRow}>
-                            <TouchableOpacity onPress={() => setShowPopup(false)}>
-                                <Image source={require("../(tabs)/assets/images/Great Emote.png")} style={s.moodIcon} />
+                        <TouchableOpacity style={styles.closeButton} onPress={() => setShowPopup(false)}>
+                            <BodyText style={styles.closeButtonText}>✕</BodyText>
+                        </TouchableOpacity>
+                        <View style={styles.moodRow}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                                <Image source={require("../(tabs)/assets/images/Great Emote.png")} style={styles.moodIcon} />
+                                <BodyText style={styles.moodLabel}>Great</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setShowPopup(false)}>
-                                <Image source={require("../(tabs)/assets/images/good emote.png")} style={s.moodIcon} />
+                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                                <Image source={require("../(tabs)/assets/images/good emote.png")} style={styles.moodIcon} />
+                                <BodyText style={styles.moodLabel}>Good</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setShowPopup(false)}>
-                                <Image source={require("../(tabs)/assets/images/okay emote.png")} style={s.moodIcon} />
+                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                                <Image source={require("../(tabs)/assets/images/okay emote.png")} style={styles.moodIcon} />
+                                <BodyText style={styles.moodLabel}>Okay</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setShowPopup(false)}>
-                                <Image source={require("../(tabs)/assets/images/low emote.png")} style={s.moodIcon} />
+                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                                <Image source={require("../(tabs)/assets/images/low emote.png")} style={styles.moodIcon} />
+                                <BodyText style={styles.moodLabel}>Low</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => setShowPopup(false)}>
-                                <Image source={require("../(tabs)/assets/images/struggling emote.png")} style={s.moodIcon} />
+                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                                <Image source={require("../(tabs)/assets/images/struggling emote.png")} style={styles.moodIcon} />
+                                <BodyText style={styles.moodLabel}>Struggling</BodyText>
                             </TouchableOpacity>
                         </View>
                     </View>
-                </BlurView>
+                </View>
             </Modal>
         </View>
     );
 };
 
-const s = StyleSheet.create({
-    container: {
+const styles = StyleSheet.create({
+    container: { // Main container
         flex: 1,
         backgroundColor: "#fff",
         paddingTop: 40,
     },
-    tabBar: {
+    tabBar: { // Tab bar
         flexDirection: "row",
         alignItems: "center",
         paddingVertical: 12,
@@ -123,64 +112,120 @@ const s = StyleSheet.create({
         backgroundColor: "#fef2f4",
         gap: 20,
     },
-    tabText: {
+    tabText: { // Inactive tab
         fontSize: 16,
         color: "#999",
     },
-    activeTabText: {
+    activeTabText: { // Active tab
+        fontSize: 16,
         color: "#d14d72",
         borderBottomWidth: 2,
         borderBottomColor: "#d14d72",
         paddingBottom: 5,
     },
-    content: {
+    content: { // Content area
         flex: 1,
         backgroundColor: "#fef2f4",
     },
-    gridContainer: { 
-        padding: 10 
+    gridContainer: { // Grid padding
+        padding: 10,
     },
-    grid: {
+    grid: { // Grid layout
         flexDirection: "row",
         justifyContent: "space-between",
     },
-    column: {
+    column: { // Column
         flex: 1,
         marginHorizontal: 5,
     },
-    image: {
+    image1: { // Image 1
         width: "100%",
+        height: 174,
         borderRadius: 10,
         marginBottom: 10,
         resizeMode: "cover",
     },
-    smallImage: { 
-        height: 60, 
-        opacity: 0.7 
+    image2: { // Image 2
+        width: "100%",
+        height: 280,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
     },
-    paidLinkText: {
+    image3: { // Image 3
+        width: "100%",
+        height: 280,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
+    },
+    image4: { // Image 4
+        width: "100%",
+        height: 101,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
+    },
+    image5: { // Image 5
+        width: "100%",
+        height: 174,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
+    },
+    image6: { // Image 6
+        width: "100%",
+        height: 280,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
+    },
+    smallImage: { // Small image
+        width: "100%",
+        height: 60,
+        borderRadius: 10,
+        marginBottom: 10,
+        resizeMode: "cover",
+        opacity: 0.7,
+    },
+    paidLinkText: { // Paid link text
         marginBottom: 10,
         fontSize: 16,
     },
-    moreLikeThis: {
+    moreLikeThis: { // More like this text
         position: "absolute",
         right: 40,
         fontSize: 16,
         marginTop: 18,
     },
-    boardText: {
+    boardText: { // Board empty state
         textAlign: "center",
         marginTop: 290,
         fontSize: 15,
         color: "#666",
     },
-    overlay: {
+    overlay: { // Popup overlay
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
     },
-    popup: {
-        width: 350,
+    blurView: { // Blur view
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    blurFallback: { // Blur fallback
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(255, 255, 255, 0.85)",
+    },
+    popup: { // Popup card
+        width: 400,
         backgroundColor: "#fef2f4",
         borderRadius: 10,
         paddingTop: 35,
@@ -192,7 +237,7 @@ const s = StyleSheet.create({
         shadowRadius: 4,
         elevation: 10,
     },
-    titleBox: {
+    titleBox: { // Title box
         position: "absolute",
         top: -40,
         width: 220,
@@ -209,22 +254,45 @@ const s = StyleSheet.create({
         shadowRadius: 4,
         elevation: 5,
     },
-    popupTitle: {
+    popupTitle: { // Popup title
         fontSize: 18,
         color: "#d14d72",
     },
-    moodRow: {
+    closeButton: { // Close button
+        position: "absolute",
+        top: 10,
+        right: 15,
+        width: 30,
+        height: 30,
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 10,
+    },
+    closeButtonText: { // Close button text
+        fontSize: 24,
+        color: "#d14d72",
+        fontWeight: "bold",
+    },
+    moodRow: { // Mood row
         flexDirection: "row",
         justifyContent: "space-between",
         marginTop: 5,
     },
-    moodIcon: {
+    moodItem: { // Mood item
+        alignItems: "center",
+        marginHorizontal: 3,
+    },
+    moodIcon: { // Mood icon
         width: 70,
         height: 90,
         resizeMode: "contain",
         marginBottom: 5,
-        backgroundColor: "#ffffffff",
-        marginHorizontal: 3,
+    },
+    moodLabel: { // Mood label
+        fontSize: 14,
+        fontWeight: "bold",
+        color: "#ff9eb4",
+        textAlign: "center",
     },
 });
 

@@ -21,6 +21,7 @@ const Index = () => {
     const [showIntro, setShowIntro] = useState(!hasShownSplash);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [activeButton, setActiveButton] = useState('login');
     const router = useRouter();
 
@@ -108,11 +109,21 @@ const Index = () => {
                     <View style={s.inputContainer}>
                         <TextInput
                             placeholder="Password"
-                            secureTextEntry
-                            style={[s.input, s.inputFont]}
+                            secureTextEntry={!showPassword}
+                            style={[s.input, s.inputFont, s.passwordInput]}
                             onChangeText={setPassword}
                             value={password}
                         />
+                        <TouchableOpacity
+                            style={s.eyeIcon}
+                            onPress={() => setShowPassword(!showPassword)}
+                        >
+                            <Ionicons
+                                name={showPassword ? "eye-off" : "eye"}
+                                size={24}
+                                color="#999"
+                            />
+                        </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity onPress={() => { }} style={s.forgotPassword}>
@@ -230,9 +241,18 @@ const s = StyleSheet.create({
         paddingHorizontal: 20,
         justifyContent: 'center',
         marginVertical: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    input: { fontSize: 16 },
+    input: {
+        fontSize: 16,
+        flex: 1,
+    },
     inputFont: { fontFamily: FONTS.regular },
+    passwordInput: { paddingRight: 10 },
+    eyeIcon: {
+        padding: 5,
+    },
     // Forgot Password
     forgotPassword: {
         alignSelf: 'flex-end',
