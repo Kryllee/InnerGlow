@@ -3,11 +3,32 @@ import { Tabs } from "expo-router";
 import { useState } from "react";
 import { Pressable, Modal, View, StyleSheet, TouchableOpacity } from "react-native";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { FontAwesome} from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import { Subheading, BodyText } from '../components/CustomText';
+import Create from './create';
+import Gratitude from '../components/Gratitude';
 
 export default function TabLayout() {
   const [showModal, setShowModal] = useState(false);
+  const [selectedType, setSelectedType] = useState(null);
+
+  const handleJournalClick = () => {
+    setSelectedType('journal');
+    setShowModal(false);
+  };
+
+  const handleGratitudeClick = () => {
+    setSelectedType('gratitude');
+    setShowModal(false);
+  };
+
+  const handleCloseJournal = () => {
+    setSelectedType(null);
+  };
+
+  const handleCloseGratitude = () => {
+    setSelectedType(null);
+  };
 
   return (
     <>
@@ -56,8 +77,8 @@ export default function TabLayout() {
               <Pressable
                 {...props}
                 onPress={(e) => {
-                  e.preventDefault(); 
-                  setShowModal(true); 
+                  e.preventDefault();
+                  setShowModal(true);
                 }}
                 android_ripple={null}
               />
@@ -96,30 +117,25 @@ export default function TabLayout() {
             onPress={() => setShowModal(false)}
           />
           <View style={styles.modalContent}>
-            {/* Custom Subheading for the title (bold text) */}
             <Subheading style={styles.modalTitle}>Start creating now</Subheading>
-
             <View style={styles.boxesContainer}>
               <TouchableOpacity style={styles.modalBox}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="pin-outline" size={24} color="#d14d72" />
-                  {/* Custom BodyText for the label */}
                   <BodyText style={styles.boxText}>Pin</BodyText>
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalBox}>
+              <TouchableOpacity style={styles.modalBox} onPress={handleJournalClick}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="book-open-page-variant-outline" size={24} color="#d14d72" />
-                  {/* Custom BodyText for the label */}
                   <BodyText style={styles.boxText}>Journal</BodyText>
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalBox}>
+              <TouchableOpacity style={styles.modalBox} onPress={handleGratitudeClick}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="cards-playing-heart-multiple-outline" size={24} color="#d14d72" />
-                  {/* Custom BodyText for the label */}
                   <BodyText style={styles.boxText}>Gratitude</BodyText>
                 </View>
               </TouchableOpacity>
@@ -127,9 +143,26 @@ export default function TabLayout() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={selectedType === 'journal'}
+        animationType="slide"
+        onRequestClose={handleCloseJournal}
+      >
+        <Create onClose={handleCloseJournal} />
+      </Modal>
+
+      <Modal
+        visible={selectedType === 'gratitude'}
+        animationType="slide"
+        onRequestClose={handleCloseGratitude}
+      >
+        <Gratitude onClose={handleCloseGratitude} />
+      </Modal>
     </>
   );
 }
+
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
@@ -141,7 +174,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
-    height: "35%", 
+    height: "35%",
   },
   modalTitle: {
     fontSize: 18,
