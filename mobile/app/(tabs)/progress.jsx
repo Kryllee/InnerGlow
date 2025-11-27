@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, ImageBackground, Image, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ImageBackground, Image, TouchableOpacity, ScrollView, Modal } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS } from '../constants/fonts';
+import JournalGratitudeView from '../components/journalGratitudeView';
 
 const progress = () => {
+    const [showJournalGratitude, setShowJournalGratitude] = useState(false);
     return (
         <ImageBackground source={require('../(tabs)/assets/images/flower.png')} style={styles.background}>
             <ScrollView contentContainerStyle={styles.container}>
@@ -49,7 +51,7 @@ const progress = () => {
                 {/* --- Recent Entries Header --- */}
                 <View style={styles.recentHeader}>
                     <Text style={styles.recentTitle}>Recent Entries</Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowJournalGratitude(true)}>
                         <Text style={styles.viewAllText}>
                             View All
                         </Text>
@@ -78,6 +80,23 @@ const progress = () => {
                     </Text>
                 </View>
             </ScrollView>
+
+            {/* Modal for Journal/Gratitude View */}
+            <Modal
+                visible={showJournalGratitude}
+                animationType="slide"
+                onRequestClose={() => setShowJournalGratitude(false)}
+            >
+                <View style={styles.modalContainer}>
+                    <TouchableOpacity
+                        style={styles.closeButton}
+                        onPress={() => setShowJournalGratitude(false)}
+                    >
+                        <FontAwesome5 name="times" size={24} color="#333" />
+                    </TouchableOpacity>
+                    <JournalGratitudeView />
+                </View>
+            </Modal>
         </ImageBackground>
     );
 };
@@ -226,6 +245,24 @@ const styles = StyleSheet.create({
     },
     navItem: {
         padding: 5,
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#FEF2F4',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        zIndex: 10,
+        backgroundColor: '#FFF',
+        borderRadius: 20,
+        padding: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 5,
     }
 });
 export default progress;

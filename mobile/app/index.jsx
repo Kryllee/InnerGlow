@@ -142,9 +142,7 @@ const Index = () => {
 
                     <View style={s.iconRow}>
                         <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
-                            <View>
-                                <Ionicons name="logo-google" size={30} color="#DB4437" />
-                            </View>
+                            <Image source={require('./\(tabs\)/assets/images/google.png')} style={s.googleImage} />
                         </TouchableOpacity>
                         <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
                             <View>
@@ -294,6 +292,10 @@ const s = StyleSheet.create({
     },
     iconContainer: {
         marginHorizontal: 10
+    },
+    googleImage: {
+        width: 30,
+        height: 30
     },
 });
 
