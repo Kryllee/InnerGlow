@@ -8,10 +8,53 @@ import { Subheading, BodyText } from '../components/CustomText';
 import Create from './create';
 import Gratitude from '../components/Gratitude';
 
+import * as ImagePicker from "expo-image-picker";
+
+import Pin from '../components/Pin';
+
 export default function TabLayout() {
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState(null);
 
+  const [selectedMedia, setSelectedMedia] = useState(null);
+
+  const handlePinClick = async () => {
+    try {
+      // Request camera permission
+      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
+      // Request media library permission
+      const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (
+        cameraPermission.status !== "granted" ||
+        mediaPermission.status !== "granted"
+      ) {
+        alert("Permission is required to access camera and photos.");
+        return;
+      }
+
+      // Open gallery (allows photos + videos)
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsMultipleSelection: true,
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        // Store selected media in state
+        setSelectedMedia(result.assets);
+        // Close bottom modal
+        setShowModal(false);
+      }
+
+    } catch (err) {
+      console.log("Error selecting media:", err);
+    }
+  };
+  // ---------------------------------------------------
+
+  // ---------------- JOURNAL & GRATITUDE -------------------
   const handleJournalClick = () => {
     setSelectedType('journal');
     setShowModal(false);
@@ -22,16 +65,13 @@ export default function TabLayout() {
     setShowModal(false);
   };
 
-  const handleCloseJournal = () => {
-    setSelectedType(null);
-  };
-
-  const handleCloseGratitude = () => {
-    setSelectedType(null);
-  };
+  const handleCloseJournal = () => setSelectedType(null);
+  const handleCloseGratitude = () => setSelectedType(null);
+  // ---------------------------------------------------
 
   return (
     <>
+      {/* ----------------- MAIN TAB NAVIGATION ----------------- */}
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -43,9 +83,7 @@ export default function TabLayout() {
             paddingBottom: 30,
             paddingTop: 10,
           },
-          tabBarLabelStyle: {
-            fontSize: 12,
-          },
+          tabBarLabelStyle: { fontSize: 12 },
         }}
       >
         <Tabs.Screen
@@ -57,6 +95,7 @@ export default function TabLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="search"
           options={{
@@ -66,6 +105,7 @@ export default function TabLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="create"
           options={{
@@ -85,6 +125,7 @@ export default function TabLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="progress"
           options={{
@@ -94,6 +135,7 @@ export default function TabLayout() {
             ),
           }}
         />
+
         <Tabs.Screen
           name="profile"
           options={{
@@ -104,7 +146,9 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
+      {/* ------------------------------------------------------- */}
 
+      {/* ----------------- BOTTOM CREATE MODAL ----------------- */}
       <Modal
         transparent
         visible={showModal}
@@ -112,20 +156,28 @@ export default function TabLayout() {
         onRequestClose={() => setShowModal(false)}
       >
         <View style={styles.modalOverlay}>
+          {/* Tap outside to close */}
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={() => setShowModal(false)}
           />
+
           <View style={styles.modalContent}>
-            <Subheading style={styles.modalTitle}>Start creating now</Subheading>
+            <Subheading style={styles.modalTitle}>
+              Start creating now
+            </Subheading>
+
             <View style={styles.boxesContainer}>
-              <TouchableOpacity style={styles.modalBox}>
+              
+              {/* PIN BUTTON */}
+              <TouchableOpacity style={styles.modalBox} onPress={handlePinClick}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="pin-outline" size={24} color="#d14d72" />
                   <BodyText style={styles.boxText}>Pin</BodyText>
                 </View>
               </TouchableOpacity>
 
+              {/* JOURNAL BUTTON */}
               <TouchableOpacity style={styles.modalBox} onPress={handleJournalClick}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="book-open-page-variant-outline" size={24} color="#d14d72" />
@@ -133,17 +185,21 @@ export default function TabLayout() {
                 </View>
               </TouchableOpacity>
 
+              {/* GRATITUDE BUTTON */}
               <TouchableOpacity style={styles.modalBox} onPress={handleGratitudeClick}>
                 <View style={styles.boxContent}>
                   <MaterialCommunityIcons name="cards-playing-heart-multiple-outline" size={24} color="#d14d72" />
                   <BodyText style={styles.boxText}>Gratitude</BodyText>
                 </View>
               </TouchableOpacity>
+
             </View>
           </View>
         </View>
       </Modal>
+      {/* ------------------------------------------------------- */}
 
+      {/* ----------------- JOURNAL MODAL ----------------- */}
       <Modal
         visible={selectedType === 'journal'}
         animationType="slide"
@@ -152,6 +208,7 @@ export default function TabLayout() {
         <Create onClose={handleCloseJournal} />
       </Modal>
 
+      {/* ----------------- GRATITUDE MODAL ----------------- */}
       <Modal
         visible={selectedType === 'gratitude'}
         animationType="slide"
@@ -159,6 +216,16 @@ export default function TabLayout() {
       >
         <Gratitude onClose={handleCloseGratitude} />
       </Modal>
+
+      {/* ----------------- PIN MODAL ----------------- */}
+      <Modal
+        visible={selectedMedia !== null}
+        animationType="slide"
+        onRequestClose={() => setSelectedMedia(null)}
+      >
+        <Pin media={selectedMedia || []} onClose={() => setSelectedMedia(null)} />
+      </Modal>
+
     </>
   );
 }
@@ -201,12 +268,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  boxContent: {
-    alignItems: "center",
-  },
-  boxText: {
-    fontSize: 12,
-    color: "#000000ff",
-    marginTop: 5,
-  },
+  boxContent: { alignItems: "center" },
+  boxText: { fontSize: 12, color: "#000000ff", marginTop: 5 },
 });
