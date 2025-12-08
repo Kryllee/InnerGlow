@@ -4,7 +4,12 @@ import { View, ScrollView, Image, StyleSheet, TouchableOpacity } from "react-nat
 import { FontAwesome5 } from "@expo/vector-icons"
 import { Subheading, BodyText } from '../components/CustomText';
 
+import { useRouter } from "expo-router";
+import { useUser } from "../context/UserContext";
+
 export default function ProfileScreen() {
+  const router = useRouter();
+  const { userProfile } = useUser();
   const [activeTab, setActiveTab] = useState("Pins")
 
   const achievements = [
@@ -39,9 +44,9 @@ export default function ProfileScreen() {
       <Image source={require("../(tabs)/assets/images/flower.png")} style={s.backgroundImage} />
       <View style={s.profileHeader}>
         <View style={s.avatar} />
-        <Subheading style={s.profileName}>Nuxczy Schutz</Subheading>
-        <BodyText style={s.profileTagline}>"Becoming the best version of yourself, one day at a time"</BodyText>
-        <TouchableOpacity style={s.editButton}>
+        <Subheading style={s.profileName}>{userProfile.firstName} {userProfile.surname}</Subheading>
+        {userProfile.bio && <BodyText style={s.profileTagline}>{userProfile.bio}</BodyText>}
+        <TouchableOpacity style={s.editButton} onPress={() => router.push("/edit-profile")}>
           <BodyText style={s.editButtonText}>Edit Profile</BodyText>
         </TouchableOpacity>
       </View>
