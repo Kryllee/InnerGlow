@@ -1,329 +1,473 @@
-// components/Pin.jsx
-import React, { useState } from "react";
-import { 
-  View, Text, TextInput, Image, ScrollView, 
-  TouchableOpacity, StyleSheet, Alert, Modal 
-} from "react-native";
-import * as ImagePicker from "expo-image-picker";
+import { useState } from "react"
+import { View, Text, TextInput, Image, ScrollView, TouchableOpacity, StyleSheet, Modal, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator } from "react-native"
+import { FontAwesome5, Ionicons } from "@expo/vector-icons"
+import * as ImagePicker from "expo-image-picker"
 
-// Default boards
-const defaultBoards = ["Travel", "Food", "Quotes"];
+const { width } = Dimensions.get("window")
 
-export default function Pin({ media = [], onClose }) {
-  const [title, setTitle] = useState("");          
-  const [description, setDescription] = useState(""); 
-  const [boards, setBoards] = useState(defaultBoards);
-  const [selectedBoard, setSelectedBoard] = useState(null);
-  const [pinMedia, setPinMedia] = useState(media);
+export default function PinCreator({ media = [], onClose }) {
+  // State Management
+  const [images, setImages] = useState(media)
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  
+  // Board Management
+  const defaultBoards = ["Travel", "Food", "Quotes", "Style", "Art"]
+  const [boards, setBoards] = useState(defaultBoards)
+  const [selectedBoard, setSelectedBoard] = useState(boards[0])
+  
+  // Modal & Loading
+  const [showNewBoardModal, setShowNewBoardModal] = useState(false)
+  const [newBoardName, setNewBoardName] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
-  // New Board modal
-  const [showNewBoardModal, setShowNewBoardModal] = useState(false);
-  const [newBoardName, setNewBoardName] = useState("");
+  const canPost = images.length > 0 && selectedBoard
 
-  // Post pin
+  // --- Handlers ---
+
   const handlePost = () => {
-    if (!title.trim()) {
-      Alert.alert("Title required", "Please add a title for your pin.");
-      return;
-    }
-    if (!selectedBoard) {
-      Alert.alert("Board required", "Please select or create a board.");
-      return;
-    }
-    Alert.alert(
-      "Success",
-      `Your pin has been posted to "${selectedBoard}" board!`
-    );
-    setTitle(""); 
-    setDescription(""); 
-    setSelectedBoard(null); 
-    setPinMedia([]);
-    if (onClose) onClose();
-  };
+    if (!canPost) return
+    setIsLoading(true)
+    setTimeout(() => {
+      setIsLoading(false)
+      if (onClose) onClose()
+    }, 1500)
+  }
 
-  // Add new board
   const handleAddBoard = () => {
-    if (!newBoardName.trim()) return;
-    if (!boards.includes(newBoardName)) setBoards([...boards, newBoardName]);
-    setSelectedBoard(newBoardName);
-    setNewBoardName("");
-    setShowNewBoardModal(false);
-  };
+    if (!newBoardName.trim()) return
+    if (!boards.includes(newBoardName)) {
+      setBoards([newBoardName, ...boards])
+      setSelectedBoard(newBoardName)
+    } else {
+      setSelectedBoard(newBoardName)
+    }
+    setNewBoardName("")
+    setShowNewBoardModal(false)
+  }
 
-  // Add photo
   const handleAddMedia = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: false,
-      quality: 1,
-    });
-    if (!result.canceled) setPinMedia([...pinMedia, ...result.assets]);
-  };
+      quality: 0.8,
+      allowsMultipleSelection: true,
+    })
+    if (!result.canceled) {
+      setImages([...images, ...result.assets])
+    }
+  }
 
-  // Remove photo
-  const handleRemoveMedia = (index) => {
-    const newMedia = [...pinMedia];
-    newMedia.splice(index, 1);
-    setPinMedia(newMedia);
-  };
+  const handleRemoveMedia = (indexToRemove) => {
+    setImages(images.filter((_, index) => index !== indexToRemove))
+  }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Close button */}
-      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.header}>Create Pin</Text>
-
-      {/* Pin Title */}
-      <TextInput
-        style={styles.titleInput}
-        placeholder="Add your pin title..."
-        placeholderTextColor="#777"
-        value={title}
-        onChangeText={setTitle}
-      />
-
-      {/* Board selection */}
-      <Text style={styles.sectionLabel}>Select Board</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
-        {boards.slice(0, 3).map((item) => (
-          <TouchableOpacity
-            key={item}
-            style={[
-              styles.boardButton,
-              selectedBoard === item && styles.boardSelected
-            ]}
-            onPress={() => setSelectedBoard(item)}
-          >
-            <Text
-              style={[
-                styles.boardButtonText,
-                selectedBoard === item && styles.boardButtonTextSelected
-              ]}
-            >
-              {item}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        {/* + button for new board */}
-        <TouchableOpacity
-          style={styles.boardButton}
-          onPress={() => setShowNewBoardModal(true)}
+    <KeyboardAvoidingView 
+      style={s.container} 
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      {/* --- HEADER --- */}
+      <View style={s.header}>
+        <TouchableOpacity style={s.closeButton} onPress={onClose}>
+          <FontAwesome5 name="times" size={20} color="#666" />
+        </TouchableOpacity>
+        <Text style={s.headerTitle}>Create Pin</Text>
+        <TouchableOpacity 
+          style={[s.saveButton, { backgroundColor: canPost ? "#D14D72" : "#E8D5E8" }]}
+          onPress={handlePost}
+          disabled={!canPost || isLoading}
         >
-          <Text style={styles.boardButtonText}>+</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={s.saveButtonText}>Save</Text>
+          )}
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
-      {/* Selected Media */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mediaScroll}>
-        {pinMedia.map((item, index) => (
-          <View key={index} style={{ marginRight: 10, position: "relative" }}>
-            <Image source={{ uri: item.uri }} style={styles.mediaPreview} />
-            <TouchableOpacity
-              style={styles.removeMediaButton}
-              onPress={() => handleRemoveMedia(index)}
-            >
-              <Text style={styles.removeMediaText}>✕</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+        
+        {/* --- MEDIA SECTION --- */}
+        <Text style={s.sectionTitle}>Gallery</Text>
+        <View style={s.mediaContainer}>
+          {images.length === 0 ? (
+            <TouchableOpacity style={s.emptyStateBox} onPress={handleAddMedia}>
+              <View style={s.uploadCircle}>
+                <FontAwesome5 name="image" size={24} color="#D14D72" />
+              </View>
+              <Text style={s.uploadText}>Pick photos</Text>
             </TouchableOpacity>
-          </View>
-        ))}
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.carouselContent}>
+              {images.map((img, index) => (
+                <View key={index} style={s.imageCard}>
+                  <Image source={{ uri: img.uri }} style={s.cardImage} />
+                  <TouchableOpacity style={s.deleteButton} onPress={() => handleRemoveMedia(index)}>
+                    <FontAwesome5 name="times" size={12} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <TouchableOpacity style={s.addMoreCard} onPress={handleAddMedia}>
+                <FontAwesome5 name="plus" size={24} color="#D14D72" />
+                <Text style={s.addMoreText}>Add</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
 
-        {/* Add photo */}
-        <TouchableOpacity style={styles.addMediaButton} onPress={handleAddMedia}>
-          <Text style={styles.addMediaText}>+</Text>
-        </TouchableOpacity>
+        {/* --- DETAILS SECTION --- */}
+        <Text style={s.sectionTitle}>Details</Text>
+        <View style={s.inputContainer}>
+          <Text style={s.inputLabel}>Title</Text>
+          <TextInput
+            style={s.textInput}
+            placeholder="Give your pin a title"
+            placeholderTextColor="#999"
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <Text style={s.inputLabel}>Description</Text>
+          <TextInput
+            style={[s.textInput, s.textArea]}
+            placeholder="What is this pin about?"
+            placeholderTextColor="#999"
+            multiline
+            value={description}
+            onChangeText={setDescription}
+            textAlignVertical="top"
+          />
+        </View>
+
+        {/* --- BOARD SECTION --- */}
+        <View style={s.boardHeaderRow}>
+            <Text style={s.sectionTitle}>Select Board</Text>
+            <TouchableOpacity onPress={() => setShowNewBoardModal(true)}>
+                <Text style={s.createBoardText}>+ Create New</Text>
+            </TouchableOpacity>
+        </View>
+
+        <View style={s.tabsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.boardScroll}>
+                {boards.map((item) => (
+                    <TouchableOpacity 
+                        key={item} 
+                        style={selectedBoard === item ? s.tabButtonActive : s.tabButton} 
+                        onPress={() => setSelectedBoard(item)}
+                    >
+                        <Text style={selectedBoard === item ? s.tabLabelActive : s.tabLabel}>{item}</Text>
+                    </TouchableOpacity>
+                ))}
+            </ScrollView>
+        </View>
+
+        {/* Spacer for bottom scrolling */}
+        <View style={{ height: 50 }} />
       </ScrollView>
 
-      {/* Pin Description */}
-      <TextInput
-        style={styles.descriptionInput}
-        placeholder="Add a description..."
-        placeholderTextColor="#777"
-        multiline
-        value={description}
-        onChangeText={setDescription}
-      />
 
-      {/* Post Button */}
-      <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postButtonText}>Save Pin</Text>
-      </TouchableOpacity>
-
-      {/* New Board Modal */}
+      {/* --- MODAL --- */}
       <Modal
         transparent
         visible={showNewBoardModal}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowNewBoardModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Create New Board</Text>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>New Board</Text>
+                <TouchableOpacity onPress={() => setShowNewBoardModal(false)}>
+                    <FontAwesome5 name="times" size={20} color="#666" />
+                </TouchableOpacity>
+            </View>
+            
             <TextInput
-              style={styles.newBoardInput}
-              placeholder="Board name"
-              placeholderTextColor="#777"
+              style={s.modalInput}
+              placeholder='e.g., "Outfits"'
               value={newBoardName}
               onChangeText={setNewBoardName}
+              autoFocus
             />
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#D14D72" }]}
+            
+            <TouchableOpacity
+                style={[s.modalButton, { backgroundColor: newBoardName.trim() ? "#D14D72" : "#E8D5E8" }]}
                 onPress={handleAddBoard}
-              >
-                <Text style={styles.modalButtonText}>Add</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, { backgroundColor: "#999" }]}
-                onPress={() => setShowNewBoardModal(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+                disabled={!newBoardName.trim()}
+            >
+                 <Text style={s.modalButtonText}>Create Board</Text>
+            </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
-    </ScrollView>
-  );
+
+    </KeyboardAvoidingView>
+  )
 }
 
-const styles = StyleSheet.create({
-  container: { 
-    padding: 20, 
-    backgroundColor: "#FEF2F4", 
-    flexGrow: 1 
+const s = StyleSheet.create({
+  container: { // Main container
+    flex: 1,
+    backgroundColor: "#FFF5F7",
   },
-
-  closeButton: { 
-    position: "absolute", 
-    top: 16, 
-    right: 15, 
-    zIndex: 1 
-  },
-  closeText: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    color: "#000" 
-  },
-  header: { 
-    fontSize: 24, 
-    fontWeight: "bold", 
-    textAlign: "center", 
-    marginBottom: 20 
-  },
-
-  titleInput: { 
-    backgroundColor: "#fff", 
-    padding: 15, 
-    borderRadius: 10, 
-    fontSize: 16, 
-    marginBottom: 15, 
-    color: "#000" 
-  },
-  sectionLabel: { 
-    fontSize: 16, 
-    fontWeight: "600", 
-    marginBottom: 10, 
-    color: "#333" 
-  },
-  descriptionInput: { 
-    backgroundColor: "#fff", 
-    padding: 15, 
-    borderRadius: 10, 
-    minHeight: 100, 
-    fontSize: 16, 
-    textAlignVertical: "top", 
-    color: "#000" 
-  },
-
-  boardButton: {
-    width: 80,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f2f2f2",
-    marginRight: 10,
-    justifyContent: "center",
+  header: { // Top navigation
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'android' ? 40 : 15,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0E0F0",
+    backgroundColor: "#FFF5F7",
   },
-  boardSelected: { backgroundColor: "#D14D72" },
-  boardButtonText: { color: "#333", fontWeight: "500" },
-  boardButtonTextSelected: { color: "#fff", fontWeight: "700" },
-
-  mediaScroll: { flexDirection: "row",
-    marginTop: -190,
+  headerTitle: { // Header text
+    fontSize: 18,
+    color: "#333",
+    fontWeight: "600",
   },
-  mediaPreview: { width: 120, height: 120, borderRadius: 10 },
-  removeMediaButton: {
-    position: "absolute",
-    top: 1,
-    right: -5,
-    backgroundColor: "#D14D72",
+  closeButton: { // Close icon area
+    padding: 8,
+  },
+  saveButton: { // Save action button
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  saveButtonText: { // Save button text
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  scrollContent: { // Scrollview body
+    paddingTop: 20,
+  },
+  sectionTitle: { // Section headers
+    fontSize: 18,
+    color: "#333",
+    marginBottom: 12,
+    marginHorizontal: 16,
+    fontWeight: "600",
+  },
+  
+  // --- Media Styles ---
+  mediaContainer: { // Media wrapper
+    marginBottom: 24,
+  },
+  carouselContent: { // Horizontal scroll content
+    paddingHorizontal: 16,
+    paddingBottom: 10, 
+  },
+  emptyStateBox: { // Empty placeholder
+    marginHorizontal: 16,
+    height: 200,
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FFB6C1",
+    borderStyle: "dashed",
+  },
+  uploadCircle: { // Icon circle
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FFE8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  uploadText: { // Upload label
+    fontSize: 16,
+    color: "#D14D72",
+    fontWeight: "500",
+  },
+  imageCard: { // Individual image container
+    width: width * 0.7,
+    height: 300,
+    marginRight: 12,
     borderRadius: 12,
+    backgroundColor: "#FFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    position: 'relative',
+  },
+  cardImage: { // The image itself
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+    resizeMode: "cover",
+  },
+  deleteButton: { // X button on image
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
     width: 24,
     height: 24,
-    justifyContent: "center",
+    borderRadius: 12,
     alignItems: "center",
+    justifyContent: "center",
   },
-  removeMediaText: { color: "#fff", fontWeight: "bold" },
-  addMediaButton: {
-    width: 120,
-    height: 120,
+  addMoreCard: { // + button at end of list
+    width: 80,
+    height: 300,
+    borderRadius: 12,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#FFB6C1",
+    marginRight: 16,
+  },
+  addMoreText: { // + button text
+    color: "#D14D72",
+    marginTop: 8,
+    fontWeight: "600",
+  },
+
+  // --- Input Styles ---
+  inputContainer: { // Inputs wrapper
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 16,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  inputLabel: { // Label above inputs
+    fontSize: 14,
+    color: "#999",
+    marginBottom: 8,
+  },
+  textInput: { // Standard input
+    backgroundColor: "#F9F9F9",
     borderRadius: 10,
-    borderWidth: 2,
+    padding: 12,
+    fontSize: 16,
+    color: "#333",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#F0E0F0",
+  },
+  textArea: { // Description area
+    minHeight: 100,
+  },
+
+  // --- Board Styles ---
+  boardHeaderRow: { // Row with Create New button
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingRight: 16,
+      marginBottom: 10,
+  },
+  createBoardText: { // + Create text
+      color: "#D14D72",
+      fontSize: 14,
+      fontWeight: "600",
+  },
+  tabsContainer: { // Board pills wrapper
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  boardScroll: { // Horizontal scroll
+      paddingBottom: 10,
+  },
+  tabButton: { // Inactive board pill
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: "#F0E0F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabButtonActive: { // Active board pill
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#D14D72",
+    borderRadius: 20,
+    marginRight: 10,
+    borderWidth: 1,
     borderColor: "#D14D72",
-    justifyContent: "center",
-    alignItems: "center",
+    shadowColor: "#D14D72",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  addMediaText: { color: "#D14D72", fontSize: 24, fontWeight: "bold" },
-
-  postButton: { 
-    backgroundColor: "#D14D72", 
-    paddingVertical: 15, 
-    borderRadius: 20, 
-    marginTop: 25, 
-    alignItems: "center" 
+  tabLabel: { // Inactive text
+    fontSize: 14,
+    color: "#666",
   },
-  postButtonText: { 
-    color: "#fff", 
-    fontSize: 18, 
-    fontWeight: "bold" 
+  tabLabelActive: { // Active text
+    fontSize: 14,
+    color: "#FFF",
+    fontWeight: "600",
   },
 
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: "rgba(0,0,0,0.5)", 
-    justifyContent: "center", 
-    alignItems: "center" 
+  // --- Modal Styles ---
+  modalOverlay: { // Modal background
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
   },
-  modalContent: { 
-    backgroundColor: "#fff", 
-    padding: 20, 
-    width: "80%", 
-    borderRadius: 15 
+  modalContent: { // Modal card
+    backgroundColor: "#FFF",
+    padding: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
   },
-  modalTitle: { 
-    fontSize: 20, 
-    fontWeight: "bold", 
-    marginBottom: 15, 
-    textAlign: "center" 
+  modalHeader: { // Modal top row
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 20,
   },
-  newBoardInput: { 
-    backgroundColor: "#f2f2f2", 
-    padding: 10, 
-    borderRadius: 10, 
-    marginBottom: 15 
+  modalTitle: { // Modal title
+      fontSize: 20,
+      fontWeight: "600",
+      color: "#333",
   },
-  modalButton: { 
-    flex: 1, 
-    padding: 12, 
-    borderRadius: 10, 
-    marginHorizontal: 5, 
-    alignItems: "center" 
+  modalInput: { // Modal input
+    backgroundColor: "#F9F9F9",
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#F0E0F0",
   },
-  modalButtonText: { 
-    color: "#fff", 
-    fontWeight: "bold" 
+  modalButton: { // Create button
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
   },
-});
+  modalButtonText: { // Button text
+      fontSize: 16,
+      fontWeight: "600",
+      color: "#FFF",
+  },
+})
