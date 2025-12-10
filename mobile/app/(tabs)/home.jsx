@@ -1,14 +1,34 @@
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text } from "react-native";
 import React, { useState, useEffect } from "react";
 import { BlurView } from 'expo-blur';
 import { Subheading, BodyText } from '../components/CustomText';
+// import { useMood } from '../context/MoodContext'; // Removed to prevent build error
+import { useRouter } from "expo-router";
+import { MOCK_PINS } from "../data/pins";
+
+// Simple Masonry Helper
+const splitPins = (pins) => {
+    const left = [];
+    const right = [];
+    pins.forEach((pin, index) => {
+        if (index % 2 === 0) left.push(pin);
+        else right.push(pin);
+    });
+    return { left, right };
+};
 
 const Home = () => {
     const [activeTab, setActiveTab] = useState("forYou");
     const [showPopup, setShowPopup] = useState(false);
+    const router = useRouter();
 
+    // Split pins for masonry layout
+    const { left, right } = splitPins(MOCK_PINS);
+
+    // Initial Popup Logic (Mock for now, replacing previous timer)
     useEffect(() => {
-        const timer = setTimeout(() => setShowPopup(true), 100);
+        // In real app, check context if logged today
+        const timer = setTimeout(() => setShowPopup(true), 500);
         return () => clearTimeout(timer);
     }, []);
 
@@ -27,28 +47,35 @@ const Home = () => {
 
             <View style={styles.content}>
                 {isForYouActive ? (
-                    <ScrollView contentContainerStyle={styles.gridContainer}>
+                    <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
                         <View style={styles.grid}>
                             <View style={styles.column}>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/1image.png")} style={styles.image1} /></TouchableOpacity>
-                                <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/3image.png")} style={styles.image3} />
-                                    <BodyText style={styles.paidLinkText}>Paid Link</BodyText>
-                                </TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/5image.png")} style={styles.image5} /></TouchableOpacity>
-                                <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/7image.png")} style={styles.smallImage} />
-                                    <BodyText style={styles.moreLikeThis}>More like this</BodyText>
-                                </TouchableOpacity>
+                                {left.map((pin) => (
+                                    <TouchableOpacity
+                                        key={pin.id}
+                                        style={styles.pinCard}
+                                        onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin.id } })}
+                                    >
+                                        <Image source={pin.image} style={[styles.image, { height: pin.height }]} />
+                                        {pin.description && (
+                                            <BodyText style={styles.pinCaption} numberOfLines={2}>{pin.description}</BodyText>
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                             <View style={styles.column}>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/2image.png")} style={styles.image2} /></TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/4image.png")} style={styles.image4} /></TouchableOpacity>
-                                <TouchableOpacity><Image source={require("../(tabs)/assets/images/6image.png")} style={styles.image6} /></TouchableOpacity>
-                                <TouchableOpacity>
-                                    <Image source={require("../(tabs)/assets/images/8image.png")} style={styles.smallImage} />
-                                    <BodyText style={styles.moreLikeThis}>More like this</BodyText>
-                                </TouchableOpacity>
+                                {right.map((pin) => (
+                                    <TouchableOpacity
+                                        key={pin.id}
+                                        style={styles.pinCard}
+                                        onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin.id } })}
+                                    >
+                                        <Image source={pin.image} style={[styles.image, { height: pin.height }]} />
+                                        {pin.description && (
+                                            <BodyText style={styles.pinCaption} numberOfLines={2}>{pin.description}</BodyText>
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
                             </View>
                         </View>
                     </ScrollView>
@@ -138,65 +165,19 @@ const styles = StyleSheet.create({
         flex: 1,
         marginHorizontal: 5,
     },
-    image1: { // Image 1
-        width: "100%",
-        height: 174,
-        borderRadius: 10,
+    pinCard: {
         marginBottom: 10,
+    },
+    image: {
+        width: "100%",
+        borderRadius: 15, // More rounded like Pins
         resizeMode: "cover",
     },
-    image2: { // Image 2
-        width: "100%",
-        height: 280,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-    },
-    image3: { // Image 3
-        width: "100%",
-        height: 280,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-    },
-    image4: { // Image 4
-        width: "100%",
-        height: 101,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-    },
-    image5: { // Image 5
-        width: "100%",
-        height: 174,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-    },
-    image6: { // Image 6
-        width: "100%",
-        height: 280,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-    },
-    smallImage: { // Small image
-        width: "100%",
-        height: 60,
-        borderRadius: 10,
-        marginBottom: 10,
-        resizeMode: "cover",
-        opacity: 0.7,
-    },
-    paidLinkText: { // Paid link text
-        marginBottom: 10,
-        fontSize: 16,
-    },
-    moreLikeThis: { // More like this text
-        position: "absolute",
-        right: 40,
-        fontSize: 16,
-        marginTop: 18,
+    pinCaption: {
+        marginTop: 5,
+        fontSize: 12,
+        color: '#333',
+        marginLeft: 4,
     },
     boardText: { // Board empty state
         textAlign: "center",
@@ -225,11 +206,10 @@ const styles = StyleSheet.create({
         backgroundColor: "rgba(255, 255, 255, 0.85)",
     },
     popup: { // Popup card
-        width: 400,
+        width: 350, // Slightly smaller
         backgroundColor: "#fef2f4",
-        borderRadius: 10,
-        paddingTop: 35,
-        paddingBottom: 35,
+        borderRadius: 20,
+        paddingVertical: 30,
         alignItems: "center",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
@@ -239,24 +219,23 @@ const styles = StyleSheet.create({
     },
     titleBox: { // Title box
         position: "absolute",
-        top: -40,
-        width: 220,
-        height: 70,
+        top: -35,
+        width: 250,
+        height: 60,
         backgroundColor: "#fff",
         borderRadius: 50,
         justifyContent: "center",
         alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#f0f0f0",
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
         elevation: 5,
     },
     popupTitle: { // Popup title
         fontSize: 18,
-        color: "#d14d72",
+        color: "#000",
+        fontWeight: 'bold',
     },
     closeButton: { // Close button
         position: "absolute",
@@ -269,28 +248,28 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     closeButtonText: { // Close button text
-        fontSize: 24,
+        fontSize: 20,
         color: "#d14d72",
         fontWeight: "bold",
     },
     moodRow: { // Mood row
         flexDirection: "row",
         justifyContent: "space-between",
-        marginTop: 5,
+        marginTop: 15,
+        width: '90%',
     },
     moodItem: { // Mood item
         alignItems: "center",
-        marginHorizontal: 3,
+        marginHorizontal: 2,
     },
     moodIcon: { // Mood icon
-        width: 70,
-        height: 90,
+        width: 50,
+        height: 50,
         resizeMode: "contain",
         marginBottom: 5,
     },
     moodLabel: { // Mood label
-        fontSize: 14,
-        fontWeight: "bold",
+        fontSize: 12,
         color: "#ff9eb4",
         textAlign: "center",
     },
