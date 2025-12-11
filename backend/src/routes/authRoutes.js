@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 const router = express.Router();
 
 const generateToken = (userId) => {
-    return jwt.sign({userId}, process.env.JWT_SECRET, {expiresIn: "15d"}); 
+    return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15d" });
 }
 
 // REGISTER/SIGNUP - requires fullName, username, email, password
@@ -13,9 +13,14 @@ router.post("/register", async (req, res) => {
     try {
         const { fullName, username, email, password } = req.body;
 
-        // Validate all fields
         if (!fullName || !username || !email || !password) {
             return res.status(400).json({ message: "All fields are required" });
+        }
+
+        // Validate email format FIRST
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ message: "Invalid email format. Please use a valid email like user@example.com" });
         }
 
         if (password.length < 6) {
@@ -54,7 +59,7 @@ router.post("/register", async (req, res) => {
 
         // Generate token
         const token = generateToken(user._id);
-        
+
         res.status(201).json({
             message: "User registered successfully",
             token,
@@ -102,7 +107,7 @@ router.post("/login", async (req, res) => {
 
         // Generate token
         const token = generateToken(user._id);
-        
+
         res.status(200).json({
             message: "Login successful",
             token,
