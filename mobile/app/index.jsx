@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from './components/CustomText';
 import { FONTS } from './constants/fonts';
 import SplashScreen from './components/SplashScreen';
+import { API_BASE_URL } from './config';
+import { useUser } from './context/UserContext';
 
 const INTRO_DELAY = 2000;
 const SHAPE_WIDTH = 117;
@@ -13,7 +15,6 @@ const PRIMARY_COLOR = '#FCC8D1';
 const SECONDARY_COLOR = '#D14D72';
 const TEXT_INACTIVE_COLOR = '#fcc8d1';
 
-// Track if splash has been shown (persists across component remounts)
 let hasShownSplash = false;
 
 const Index = () => {
@@ -22,8 +23,10 @@ const Index = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [activeButton, setActiveButton] = useState('login');
+    const [loading, setLoading] = useState(false);
+
     const router = useRouter();
+    const { updateProfile } = useUser();
 
     useEffect(() => {
         if (!hasShownSplash) {
@@ -34,31 +37,49 @@ const Index = () => {
         }
     }, []);
 
-    const goSignUp = () => {
-        setMode('signup');
-        setActiveButton('signup');
-        router.push('./SignUp');
-    };
-
-    const handleLogin = () => {
-        setActiveButton('login');
-    };
-
     const handleSignUp = () => {
-        setActiveButton('signup');
         router.push('./SignUp');
     };
 
-    const submit = () => {
+    const submit = async () => {
         if (!username.trim() || !password.trim()) {
             return Alert.alert('Required', 'Please enter username/email and password');
         }
-        router.replace('/(tabs)/home');
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usernameOrEmail: username, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || "Login failed");
+            }
+
+            // Sync user data to context
+            const names = data.user.fullName.split(' ');
+            updateProfile({
+                firstName: names[0] || data.user.fullName,
+                surname: names.slice(1).join(' ') || '',
+                username: data.user.username,
+                avatar: { uri: data.user.profileImage }
+            });
+
+            router.replace('/(tabs)/home');
+
+        } catch (error) {
+            Alert.alert("Login Error", error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (showIntro) return <SplashScreen />;
 
-    const isSignUp = mode === 'signup';
     const hasInput = username && password;
 
     return (
@@ -77,22 +98,16 @@ const Index = () => {
 
                     <View style={s.toggleRow}>
                         <TouchableOpacity
-                            style={[s.toggleBtn, !isSignUp && s.activeToggle]}
-                            onPress={() => {
-                                setMode('login');
-                                handleLogin();
-                            }}
+                            style={[s.toggleBtn, s.activeToggle]}
+                            disabled
                         >
-                            <Subheading style={[s.toggleText, !isSignUp && s.activeText]}>Log in</Subheading>
+                            <Subheading style={[s.toggleText, s.activeText]}>Log in</Subheading>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[s.toggleBtn, isSignUp && s.activeToggle]}
-                            onPress={() => {
-                                goSignUp();
-                                handleSignUp();
-                            }}
+                            style={[s.toggleBtn]}
+                            onPress={handleSignUp}
                         >
-                            <Subheading style={[s.toggleText, isSignUp ? s.activeText : s.inactiveText]}>Sign up</Subheading>
+                            <Subheading style={[s.toggleText, s.inactiveText]}>Sign up</Subheading>
                         </TouchableOpacity>
                     </View>
 
@@ -103,6 +118,7 @@ const Index = () => {
                             style={[s.input, s.inputFont]}
                             onChangeText={setUsername}
                             value={username}
+                            autoCapitalize="none"
                         />
                     </View>
 
@@ -132,22 +148,20 @@ const Index = () => {
 
                     <TouchableOpacity
                         onPress={submit}
-                        style={[s.btn, !hasInput && s.disabled]}
-                        disabled={!hasInput}
+                        style={[s.btn, (!hasInput || loading) && s.disabled]}
+                        disabled={!hasInput || loading}
                     >
-                        <Subheading style={s.btnText}>Log in</Subheading>
+                        {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Log in</Subheading>}
                     </TouchableOpacity>
 
                     <BodyText style={s.orText}>or login with</BodyText>
 
                     <View style={s.iconRow}>
                         <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
-                            <Image source={require('./\(tabs\)/assets/images/google.png')} style={s.googleImage} />
+                            <Ionicons name="logo-google" size={30} color="#DB4437" />
                         </TouchableOpacity>
                         <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
-                            <View>
-                                <Ionicons name="logo-facebook" size={30} color="#1877F2" />
-                            </View>
+                            <Ionicons name="logo-facebook" size={30} color="#1877F2" />
                         </TouchableOpacity>
                     </View>
                 </View>

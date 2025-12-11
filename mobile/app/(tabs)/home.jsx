@@ -2,7 +2,6 @@ import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text } fr
 import React, { useState, useEffect } from "react";
 import { BlurView } from 'expo-blur';
 import { Subheading, BodyText } from '../components/CustomText';
-// import { useMood } from '../context/MoodContext'; // Removed to prevent build error
 import { useRouter } from "expo-router";
 import { MOCK_PINS } from "../data/pins";
 

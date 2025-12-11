@@ -3,6 +3,7 @@ import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { UserProvider } from "./context/UserContext";
+import { JournalProvider } from "./context/JournalContext";
 
 // Prevent the splash screen from auto-hiding until fonts are loaded
 SplashScreen.preventAutoHideAsync();
@@ -28,10 +29,15 @@ export default function RootLayout() {
 
   return (
     <UserProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="edit-profile" options={{ presentation: 'modal', headerShown: false }} />
-      </Stack>
+      <JournalProvider>
+        <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="SignUp" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="edit-profile" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="pin-detail" options={{ headerShown: false }} />
+        </Stack>
+      </JournalProvider>
     </UserProvider>
   );
 }

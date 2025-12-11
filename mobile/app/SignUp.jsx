@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert } from 'react-native';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Subheading, BodyText } from './components/CustomText';
 import { FONTS } from './constants/fonts';
 import { Ionicons } from '@expo/vector-icons';
+import { API_BASE_URL } from './config';
+import { useUser } from './context/UserContext';
 
 const PRIMARY_COLOR = '#FCC8D1';
 const SECONDARY_COLOR = '#D14D72';
@@ -11,11 +13,14 @@ const SECONDARY_COLOR = '#D14D72';
 export default function SignUp() {
     const [fullName, setFullName] = useState('');
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [errors, setErrors] = useState({ n: false, u: false, p: false });
-    const [activeButton, setActiveButton] = useState('signup');
+    const [errors, setErrors] = useState({ n: false, u: false, e: false, p: false });
+    const [loading, setLoading] = useState(false);
+
     const router = useRouter();
+    const { updateProfile } = useUser();
 
     // Updates state and clears specific error
     const handleChange = (setter, key) => (t) => {
@@ -23,31 +28,55 @@ export default function SignUp() {
         if (errors[key]) setErrors(e => ({ ...e, [key]: false }));
     };
 
-    // Handles login button press
     const handleLogin = () => {
-        setActiveButton('login');
-        router.push('./'); // Navigates back to the login screen
+        router.push('/');
     };
 
-    // Handles signup button press
-    const handleSignUp = () => {
-        setActiveButton('signup');
-    };
-
-    // Handles final signup action
-    const handleFinalSignUp = () => {
-        router.replace({ pathname: '/(tabs)/home', params: { justLoggedIn: 'true' } });
-    };
-
-    // Submits the signup form
-    const submit = () => {
-        const e = { n: !fullName.trim(), u: !username.trim(), p: !password.trim() };
+    const submit = async () => {
+        const e = {
+            n: !fullName.trim(),
+            u: !username.trim(),
+            e: !email.trim(),
+            p: !password.trim()
+        };
         setErrors(e);
-        if (e.n || e.u || e.p) return Alert.alert('Required', 'Please fill all fields');
-        router.replace('/(tabs)/home');
+        if (e.n || e.u || e.e || e.p) return Alert.alert('Required', 'Please fill all fields');
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fullName, username, email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || "Registration failed");
+            }
+
+            // Sync user data to context
+            // Backend returns fullName, we can split it or just store it
+            const names = data.user.fullName.split(' ');
+            updateProfile({
+                firstName: names[0] || data.user.fullName,
+                surname: names.slice(1).join(' ') || '',
+                username: data.user.username,
+                avatar: { uri: data.user.profileImage } // DiceBear URL
+            });
+
+            // Navigate to Home
+            router.replace('/(tabs)/home');
+
+        } catch (error) {
+            Alert.alert("Registration Error", error.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const hasAllInput = fullName && username && password;
+    const hasAllInput = fullName && username && email && password;
 
     return (
         <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -70,7 +99,7 @@ export default function SignUp() {
                         <TouchableOpacity style={s.toggleBtn} onPress={handleLogin}>
                             <Subheading style={[s.toggleText, { color: PRIMARY_COLOR }]}>Log in</Subheading>
                         </TouchableOpacity>
-                        <TouchableOpacity style={[s.toggleBtn, s.activeToggle]} onPress={handleSignUp}>
+                        <TouchableOpacity style={[s.toggleBtn, s.activeToggle]} disabled>
                             <Subheading style={[s.toggleText, s.activeText]}>Sign up</Subheading>
                         </TouchableOpacity>
                     </View>
@@ -82,11 +111,18 @@ export default function SignUp() {
                         {errors.n && <BodyText style={s.err}>Required</BodyText>}
                     </View>
 
-                    {/* Username/Email Input */}
+                    {/* Username Input */}
                     <View style={s.inputWrap}>
                         <TextInput
-                            placeholder="Username or Email" keyboardType="email-address" style={[s.input, s.inputFont]} value={username} onChangeText={handleChange(setUsername, 'u')} />
+                            placeholder="Username" style={[s.input, s.inputFont]} value={username} onChangeText={handleChange(setUsername, 'u')} />
                         {errors.u && <BodyText style={s.err}>Required</BodyText>}
+                    </View>
+
+                    {/* Email Input - NEW */}
+                    <View style={s.inputWrap}>
+                        <TextInput
+                            placeholder="Email" keyboardType="email-address" style={[s.input, s.inputFont]} value={email} onChangeText={handleChange(setEmail, 'e')} />
+                        {errors.e && <BodyText style={s.err}>Required</BodyText>}
                     </View>
 
                     {/* Password Input */}
@@ -112,8 +148,8 @@ export default function SignUp() {
                     </View>
 
                     {/* Submit Button */}
-                    <TouchableOpacity onPress={submit} style={[s.btn, !hasAllInput && s.disabled]} disabled={!hasAllInput}>
-                        <Subheading style={s.btnText}>Sign up</Subheading>
+                    <TouchableOpacity onPress={submit} style={[s.btn, (!hasAllInput || loading) && s.disabled]} disabled={!hasAllInput || loading}>
+                        {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Sign up</Subheading>}
                     </TouchableOpacity>
                 </View>
             </ScrollView>

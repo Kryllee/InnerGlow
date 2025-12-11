@@ -1,46 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, Dimensions, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Dimensions, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { FONTS } from '../constants/fonts';
 import { Ionicons } from '@expo/vector-icons';
+import { useJournal } from '../context/JournalContext';
+import { Audio } from 'expo-av';
+import { API_BASE_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.7;
 
 const journalGratitudeView = () => {
-    // State for entries
-    const [journalEntries, setJournalEntries] = useState([
-        {
-            id: 1,
-            text: "Ganiha sa 3rd floor sa CITC Building, nagkita mi—nag-wave sa usag usa with a smile, then nag kita gyud mi og klaro, murag slow-mo ang tanan. Gikapoy ko ato tungod sa prelim results—murag giluya akong kasing-kasing. Pero pagkakita nako niya, kalit lang ko'g smile nga wa nako damha. Ang akong friend pa gyud, murag naa gyuy plano. Ingon siya, 'Dari ta agi sa hagdanan.' Bisag naa may elevator, ni-insist gyud siya. Knowing him, kabalo ko nga naa na siyay gi-execute nga mission. Sumabay ra ko sa iyang trip, then boom—naa siya didto. Murag scripted kaayo ang moment. Ang akong disappointment kay nawala, napulihan og butterflies sa tiyan. Murag gi-restart akong adlaw. Kilig kaayo, promise. Basin wala siya kabalo, pero para nako, that small wave and smile meant everything.",
-            date: "11/27/25   8:02 PM"
-        },
-        {
-            id: 2,
-            text: "Ganiha sa 3rd floor sa CITC Building, nagkita mi—nag-wave sa usag usa with a smile, then nag ki....",
-            date: "11/28/25   8:02 AM"
-        }
-    ]);
-
-    const [gratitudeEntries, setGratitudeEntries] = useState([
-        {
-            id: 1,
-            items: [
-                "That unexpected smile from someone I like",
-                "That quiet moment when our eyes locked and my",
-                "heart forgot its rhythm..."
-            ],
-            date: "11/27/25   8:02 PM"
-        },
-        {
-            id: 2,
-            items: [
-                "That unexpected smile from someone I like",
-                "That quiet moment when our eyes locked and my",
-                "heart forgot its rhythm..."
-            ],
-            date: "11/28/25   8:02 AM"
-        }
-    ]);
+    // Consume context instead of local state
+    const { entries: journalEntries, gratitude: gratitudeEntries, updateEntry } = useJournal();
 
     // State for modal
     const [selectedEntry, setSelectedEntry] = useState(null);
@@ -48,6 +19,10 @@ const journalGratitudeView = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedText, setEditedText] = useState('');
     const [entryType, setEntryType] = useState('');
+
+    // Audio playback state
+    const [sound, setSound] = useState(null);
+    const [isPlaying, setIsPlaying] = useState(false);
 
     // Open modal
     const openModal = (entry, type) => {
@@ -64,30 +39,27 @@ const journalGratitudeView = () => {
     };
 
     // Save edited content
-    const saveEdit = () => {
+    const saveEdit = async () => {
         if (entryType === 'journal') {
             // Update journal entry
-            setJournalEntries(journalEntries.map(entry =>
-                entry.id === selectedEntry.id
-                    ? { ...entry, text: editedText }
-                    : entry
-            ));
+            await updateEntry(selectedEntry._id, { text: editedText }, 'journal');
             setSelectedEntry({ ...selectedEntry, text: editedText });
         } else {
             // Update gratitude entry - split by newlines
             const newItems = editedText.split('\n').filter(item => item.trim() !== '');
-            setGratitudeEntries(gratitudeEntries.map(entry =>
-                entry.id === selectedEntry.id
-                    ? { ...entry, items: newItems }
-                    : entry
-            ));
+            await updateEntry(selectedEntry._id, { items: newItems }, 'gratitude');
             setSelectedEntry({ ...selectedEntry, items: newItems });
         }
         setIsEditing(false);
     };
 
     // Close modal
-    const closeModal = () => {
+    const closeModal = async () => {
+        if (sound) {
+            await sound.unloadAsync();
+            setSound(null);
+        }
+        setIsPlaying(false);
         setIsModalVisible(false);
         setIsEditing(false);
         setSelectedEntry(null);
@@ -98,8 +70,53 @@ const journalGratitudeView = () => {
         setIsEditing(true);
     };
 
+    // Play/Pause audio
+    const toggleAudioPlayback = async () => {
+        try {
+            if (!selectedEntry?.audioUrl) return;
+
+            console.log('Attempting to play audio from:', selectedEntry.audioUrl);
+
+            if (sound) {
+                if (isPlaying) {
+                    await sound.pauseAsync();
+                    setIsPlaying(false);
+                } else {
+                    await sound.playAsync();
+                    setIsPlaying(true);
+                }
+            } else {
+                // audioUrl from Cloudinary is already a full URL
+                // If it starts with /, it's an old local path - show error
+                if (selectedEntry.audioUrl.startsWith('/')) {
+                    Alert.alert(
+                        'Old Recording',
+                        'This is an old recording saved before cloud storage was enabled. Please record a new voice note.',
+                        [{ text: 'OK' }]
+                    );
+                    return;
+                }
+
+                const { sound: newSound } = await Audio.Sound.createAsync(
+                    { uri: selectedEntry.audioUrl },
+                    { shouldPlay: true },
+                    (status) => {
+                        if (status.didJustFinish) {
+                            setIsPlaying(false);
+                        }
+                    }
+                );
+                setSound(newSound);
+                setIsPlaying(true);
+            }
+        } catch (error) {
+            console.error('Error playing audio:', error);
+            Alert.alert('Error', 'Failed to play audio. Please try recording a new voice note.');
+        }
+    };
+
     const renderJournalCard = (entry) => (
-        <View key={entry.id} style={styles.cardWrapper}>
+        <View key={entry._id} style={styles.cardWrapper}>
             <Image
                 source={require('../(tabs)/assets/images/ribbon.png')}
                 style={styles.ribbonTopRight}
@@ -112,7 +129,14 @@ const journalGratitudeView = () => {
                 activeOpacity={0.8}
             >
                 <View style={styles.pinkContent}>
-                    <Text style={styles.contentText} numberOfLines={8}>{entry.text}</Text>
+                    {entry.audioUrl ? (
+                        <View style={styles.audioIndicator}>
+                            <Ionicons name="musical-notes" size={40} color="#D14D72" />
+                            <Text style={styles.audioText}>Voice Note</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.contentText} numberOfLines={8}>{entry.text || ''}</Text>
+                    )}
                 </View>
                 <Text style={styles.dateText}>{entry.date}</Text>
             </TouchableOpacity>
@@ -120,7 +144,7 @@ const journalGratitudeView = () => {
     );
 
     const renderGratitudeCard = (entry) => (
-        <View key={entry.id} style={styles.cardWrapper}>
+        <View key={entry._id} style={styles.cardWrapper}>
             <Image
                 source={require('../(tabs)/assets/images/ribbon.png')}
                 style={styles.ribbonTopLeft}
@@ -184,10 +208,12 @@ const journalGratitudeView = () => {
                         <Ionicons name="close" size={30} color="#FFF" />
                     </TouchableOpacity>
 
-                    {/* Edit button (pen icon) */}
-                    <TouchableOpacity style={styles.editButton} onPress={startEditing}>
-                        <Ionicons name="pencil" size={24} color="#333" />
-                    </TouchableOpacity>
+                    {/* Edit button (pen icon) - only show for text entries */}
+                    {!selectedEntry?.audioUrl && (
+                        <TouchableOpacity style={styles.editButton} onPress={startEditing}>
+                            <Ionicons name="pencil" size={24} color="#333" />
+                        </TouchableOpacity>
+                    )}
 
                     {/* Pink content - no white container */}
                     <View style={styles.modalPinkContent}>
@@ -206,6 +232,11 @@ const journalGratitudeView = () => {
                                     <Text style={styles.saveButtonText}>Save</Text>
                                 </TouchableOpacity>
                             </>
+                        ) : selectedEntry?.audioUrl ? (
+                            <View style={styles.audioPlayerContainer}>
+                                <Ionicons name="musical-notes" size={60} color="#D14D72" />
+                                <Text style={styles.audioLabel}>Voice Recording</Text>
+                            </View>
                         ) : (
                             <ScrollView showsVerticalScrollIndicator={false}>
                                 {entryType === 'journal' ? (
@@ -221,6 +252,23 @@ const journalGratitudeView = () => {
                                     ))
                                 )}
                             </ScrollView>
+                        )}
+
+                        {/* Audio Player */}
+                        {selectedEntry?.audioUrl && !isEditing && (
+                            <TouchableOpacity
+                                style={styles.audioPlayerButton}
+                                onPress={toggleAudioPlayback}
+                            >
+                                <Ionicons
+                                    name={isPlaying ? "pause-circle" : "play-circle"}
+                                    size={40}
+                                    color="#333"
+                                />
+                                <Text style={styles.audioPlayerText}>
+                                    {isPlaying ? 'Pause Voice Note' : 'Play Voice Note'}
+                                </Text>
+                            </TouchableOpacity>
                         )}
 
                         {/* Date at bottom */}
@@ -313,6 +361,31 @@ const styles = StyleSheet.create({
         color: '#333',
         marginRight: 10,
     },
+    audioIndicator: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 10,
+    },
+    audioText: {
+        fontSize: 16,
+        fontFamily: FONTS.semiBold,
+        color: '#D14D72',
+        textAlign: 'center',
+    },
+    audioPlayerContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 15,
+        paddingVertical: 30,
+    },
+    audioLabel: {
+        fontSize: 18,
+        fontFamily: FONTS.semiBold,
+        color: '#D14D72',
+        textAlign: 'center',
+    },
 
     // Modal styles
     modalOverlay: { // Modal background
@@ -391,6 +464,21 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 16,
         fontFamily: FONTS.bold,
+    },
+    audioPlayerButton: { // Audio player button
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFF',
+        borderRadius: 10,
+        padding: 12,
+        marginTop: 15,
+        gap: 10,
+    },
+    audioPlayerText: { // Audio player text
+        fontSize: 16,
+        fontFamily: FONTS.semiBold,
+        color: '#333',
     },
 });
 
