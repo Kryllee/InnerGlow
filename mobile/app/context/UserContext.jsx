@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext } from 'react';
+import { API_BASE_URL } from '../config';
 
 const UserContext = createContext();
 
@@ -30,8 +31,28 @@ export const UserProvider = ({ children }) => {
         setToken(null);
     };
 
+    const refreshProfile = async () => {
+        if (!token) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}/users/me`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const updatedUser = await response.json();
+                // Ensure legacy field support if needed, or just update userProfile
+                // The backend returns user object directly
+                setUserProfile(prev => ({ ...prev, ...updatedUser }));
+            }
+        } catch (e) {
+            console.error("Failed to refresh profile", e);
+        }
+    };
+
     return (
-        <UserContext.Provider value={{ userProfile, updateProfile, token, login, logout }}>
+        <UserContext.Provider value={{ userProfile, updateProfile, token, login, logout, refreshProfile }}>
             {children}
         </UserContext.Provider>
     );

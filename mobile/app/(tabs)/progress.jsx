@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ImageBackground, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator, Alert, TextInput } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ImageBackground, Image, TouchableOpacity, ScrollView, Modal, ActivityIndicator, TextInput, Platform, StatusBar } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS } from '../constants/fonts';
-import JournalGratitudeView from '../components/journalGratitudeView';
 import { useJournal } from '../context/JournalContext';
 import { useUser } from '../context/UserContext';
 import { API_BASE_URL } from '../config';
-
-const API_URL = `${API_BASE_URL}/affirmation/daily`;
+import { useRouter } from 'expo-router';
 
 const StreakModal = ({ visible, onClose, onComplete, challenge }) => {
     const [answer, setAnswer] = useState('');
@@ -47,10 +47,14 @@ const StreakModal = ({ visible, onClose, onComplete, challenge }) => {
     );
 };
 
+
+// ... (imports remain)
+
 const Progress = () => {
-    const { entries, gratitude, isStreakActive, setIsStreakActive } = useJournal();
-    const { userProfile, token } = useUser();
-    const [showJournalGratitude, setShowJournalGratitude] = useState(false);
+    const insets = useSafeAreaInsets();
+    const { entries, gratitude, isStreakActive, setIsStreakActive, fetchEntries } = useJournal();
+    const { userProfile, token, refreshProfile } = useUser();
+    const router = useRouter();
 
     // Affirmation State
     const [affirmation, setAffirmation] = useState("Loading affirmation...");
@@ -59,11 +63,32 @@ const Progress = () => {
     // Streak State
     const [showStreakModal, setShowStreakModal] = useState(false);
     const [networkChallenge, setNetworkChallenge] = useState(null);
+    const [streakCount, setStreakCount] = useState(0);
 
-    // Fetch affirmation on mount
+    // Fetch data on screen focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchAffirmation();
+            if (fetchEntries) fetchEntries(); // Sync entries
+            if (refreshProfile) refreshProfile(); // Sync streak
+        }, [fetchEntries, refreshProfile])
+    );
+
+    // Update local streak count and status from profile
     useEffect(() => {
-        fetchAffirmation();
-    }, []);
+        if (userProfile) {
+            setStreakCount(userProfile.streakCount || 0);
+
+            // Check if streak completed today
+            if (userProfile.lastStreakDate) {
+                const today = new Date().toISOString().split('T')[0];
+                const lastStreak = new Date(userProfile.lastStreakDate).toISOString().split('T')[0];
+                if (lastStreak === today) {
+                    setIsStreakActive(true);
+                }
+            }
+        }
+    }, [userProfile]);
 
     // Fetch challenge when modal opens
     useEffect(() => {
@@ -78,12 +103,10 @@ const Progress = () => {
             const data = await response.json();
             if (data && data.text) {
                 setAffirmation(data.text);
-            } else {
-                setAffirmation("You are capable of amazing things.");
             }
         } catch (error) {
             console.log("Error fetching affirmation:", error);
-            setAffirmation("You are strong, confident, and unstoppable.");
+            // No static fallback as requested
         } finally {
             setLoadingAffirmation(false);
         }
@@ -116,140 +139,187 @@ const Progress = () => {
                     },
                     body: JSON.stringify({ userId: userProfile._id })
                 });
+                // Refresh profile to update streak count immediately
+                if (refreshProfile) refreshProfile();
+                else setStreakCount(prev => prev + 1); // Optimistic update
             }
         } catch (error) {
             console.log("Error updating streak:", error);
         }
     };
 
+    const formatDate = (dateString, type) => {
+        if (!dateString) return '';
+        // If it's already "Month DD, YYYY", append dummy time or existing time if available?
+        // Check if dateString is ISO or already formatted.
+        // The requirement is: "December 16, 2025   8:40 PM"
+
+        let dateObj = new Date(dateString);
+        if (isNaN(dateObj.getTime())) {
+            // If manual string like "Today", return as is or parse
+            return dateString;
+        }
+
+        const options = { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true };
+        return dateObj.toLocaleString('en-US', options).replace(',', '').replace(' at', '  '); // Adjusting to match "December 16, 2025   8:40 PM"
+    };
+
+    // Helper to format consistent with requirement
+    const getFormattedDate = (entry) => {
+        if (entry.displayDate) {
+            // Check if displayDate is already formatted? 
+            // The User wants "December 16, 2025   8:40 PM"
+            // If the backend saves it as a string, we might just display it.
+            // But let's try to parse entry.createdAt for consistent real time
+            try {
+                const date = new Date(entry.createdAt || entry.date);
+                return date.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                }) + '   ' + date.toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            } catch (e) {
+                return entry.displayDate;
+            }
+        }
+        return new Date().toLocaleDateString();
+    };
+
+
     // Get latest entries
     const latestJournal = entries.length > 0 ? entries[0] : null;
-    const latestGratitude = gratitude.length > 0 ? gratitude[0] : null;
+
+    // Filter for just gratitude entries for the "Recent" list if user wants specific gratitude
+    const recentGratitudeList = gratitude.slice(0, 3); // top 3
 
     return (
-        <ImageBackground source={require('../(tabs)/assets/images/flower.png')} style={styles.background}>
-            <ScrollView contentContainerStyle={styles.container}>
+        <ImageBackground source={require('../../app/(tabs)/assets/images/flower.png')} style={styles.background}>
+            <View style={{ flex: 1, paddingTop: insets.top }}>
+                <ScrollView contentContainerStyle={styles.container}>
 
-                {/* Header Section with Affirmation */}
-                <View style={styles.headerCard}>
-                    <View style={styles.affirmationContent}>
-                        <View style={styles.affirmationTitleContainer}>
-                            <FontAwesome5 name="star" size={24} color="#E78AA1" />
-                            <Text style={styles.affirmationTitle}>Daily Affirmation</Text>
+                    {/* Header Section with Affirmation */}
+                    <View style={styles.headerCard}>
+                        <View style={styles.affirmationContent}>
+                            <View style={styles.affirmationTitleContainer}>
+                                <FontAwesome5 name="star" size={24} color="#E78AA1" />
+                                <Text style={styles.affirmationTitle}>Daily Affirmation</Text>
+                            </View>
+                            {loadingAffirmation ? (
+                                <ActivityIndicator size="small" color="#E78AA1" style={{ alignSelf: 'flex-start', marginLeft: 20 }} />
+                            ) : (
+                                <Text style={styles.affirmationText}>
+                                    {affirmation}
+                                </Text>
+                            )}
                         </View>
-                        {loadingAffirmation ? (
-                            <ActivityIndicator size="small" color="#E78AA1" style={{ alignSelf: 'flex-start', marginLeft: 20 }} />
-                        ) : (
-                            <Text style={styles.affirmationText}>
-                                {affirmation}
+                        {/* Kiki Image - Positioned to not cover text */}
+                        <View style={styles.kikiContainer}>
+                            <Image source={require('../../app/(tabs)/assets/images/kiki.png')} style={styles.kikiImage} resizeMode="contain" />
+                        </View>
+                    </View>
+
+                    {/* --- Stats/Metric Cards Section --- */}
+                    <View style={styles.statsContainer}>
+                        {/* Streak Card */}
+                        <TouchableOpacity
+                            style={[styles.statCard, isStreakActive && styles.activeCardBorder]}
+                            onPress={() => !isStreakActive && setShowStreakModal(true)}
+                            disabled={isStreakActive}
+                        >
+                            <FontAwesome5
+                                name="fire"
+                                size={30}
+                                color={isStreakActive ? "#D14D72" : "#E78AA1"}
+                                style={styles.statIcon}
+                            />
+                            <Text style={styles.statNumber}>{streakCount}</Text>
+                            <Text style={styles.statLabel}>Day Streak</Text>
+                        </TouchableOpacity>
+
+                        {/* Entries Card - NAVIGATE */}
+                        <TouchableOpacity
+                            style={styles.statCard}
+                            onPress={() => router.push('/journalGratitudeView')}
+                        >
+                            <FontAwesome5 name="calendar-alt" size={30} color="#E78AA1" style={styles.statIcon} />
+                            <Text style={styles.statNumber}>{entries.length}</Text>
+                            <Text style={styles.statLabel}>Entries</Text>
+                        </TouchableOpacity>
+
+                        {/* Gratitude Card - NAVIGATE */}
+                        <TouchableOpacity
+                            style={styles.statCard}
+                            onPress={() => router.push('/journalGratitudeView')}
+                        >
+                            <FontAwesome5 name="heart" size={30} color="#E78AA1" style={styles.statIcon} solid />
+                            <Text style={styles.statNumber}>{gratitude.length}</Text>
+                            <Text style={styles.statLabel}>Gratitude</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* --- Recent Entries Header --- */}
+                    <View style={styles.recentHeader}>
+                        <Text style={styles.recentTitle}>Recent Entries</Text>
+                        <TouchableOpacity onPress={() => router.push('/journalGratitudeView')}>
+                            <Text style={styles.viewAllText}>
+                                View All
                             </Text>
-                        )}
-                    </View>
-                    <Image source={require('../(tabs)/assets/images/kiki.png')} style={styles.kikiImage} resizeMode="contain" />
-                </View>
-
-                {/* --- Stats/Metric Cards Section --- */}
-                <View style={styles.statsContainer}>
-                    {/* Streak Card */}
-                    <TouchableOpacity
-                        style={[styles.statCard, isStreakActive && styles.activeCardBorder]}
-                        onPress={() => !isStreakActive && setShowStreakModal(true)}
-                        disabled={isStreakActive}
-                    >
-                        <FontAwesome5
-                            name="fire"
-                            size={30}
-                            color={isStreakActive ? "#D14D72" : "#E78AA1"}
-                            style={styles.statIcon}
-                        />
-                        <Text style={styles.statNumber}>7</Text>
-                        <Text style={styles.statLabel}>Day Streak</Text>
-                    </TouchableOpacity>
-
-                    {/* Entries Card */}
-                    <View style={styles.statCard}>
-                        <FontAwesome5 name="calendar-alt" size={30} color="#E78AA1" style={styles.statIcon} />
-                        <Text style={styles.statNumber}>{entries.length}</Text>
-                        <Text style={styles.statLabel}>Entries</Text>
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Gratitude Card */}
-                    <View style={styles.statCard}>
-                        <FontAwesome5 name="heart" size={30} color="#E78AA1" style={styles.statIcon} solid />
-                        <Text style={styles.statNumber}>{gratitude.length}</Text>
-                        <Text style={styles.statLabel}>Gratitude</Text>
-                    </View>
-                </View>
-
-                {/* --- Recent Entries Header --- */}
-                <View style={styles.recentHeader}>
-                    <Text style={styles.recentTitle}>Recent Entries</Text>
-                    <TouchableOpacity onPress={() => setShowJournalGratitude(true)}>
-                        <Text style={styles.viewAllText}>
-                            View All
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* --- Recent Entries List --- */}
-                {latestJournal ? (
-                    <View style={[styles.entryCard, styles.journalCardBackground]}>
-                        <View style={styles.entryHeader}>
-                            <Text style={[styles.entryType, styles.journalType]}>Journal</Text>
-                            <Text style={styles.entryTime}>{latestJournal.date.toString()}</Text>
+                    {/* --- Recent Journal --- */}
+                    {latestJournal ? (
+                        <View style={[styles.entryCard, styles.journalCardBackground]}>
+                            <View style={styles.entryHeader}>
+                                <Text style={[styles.entryType, styles.journalType]}>Journal</Text>
+                                <Text style={styles.entryTime}>{getFormattedDate(latestJournal)}</Text>
+                            </View>
+                            <Text style={styles.entryText} numberOfLines={2}>
+                                {latestJournal.text}
+                            </Text>
                         </View>
-                        <Text style={styles.entryText} numberOfLines={2}>
-                            {latestJournal.text}
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={[styles.entryCard, { alignItems: 'center', justifyContent: 'center' }]}>
-                        <Text style={{ fontFamily: FONTS.regular, color: '#999' }}>No journal entries yet.</Text>
-                    </View>
-                )}
-
-                {/* Gratitude Entry Card */}
-                {latestGratitude ? (
-                    <View style={styles.entryCard}>
-                        <View style={styles.entryHeader}>
-                            <Text style={[styles.entryType, styles.gratitudeType]}>Gratitude</Text>
-                            <Text style={styles.entryTime}>{latestGratitude.date.toString()}</Text>
+                    ) : (
+                        <View style={[styles.entryCard, { alignItems: 'center', justifyContent: 'center' }]}>
+                            <Text style={{ fontFamily: FONTS.regular, color: '#999' }}>No journal entries yet.</Text>
                         </View>
-                        <Text style={styles.entryText} numberOfLines={3}>
-                            {latestGratitude.items.join(', ')}
-                        </Text>
-                    </View>
-                ) : (
-                    <View style={[styles.entryCard, { alignItems: 'center', justifyContent: 'center' }]}>
-                        <Text style={{ fontFamily: FONTS.regular, color: '#999' }}>No gratitude list yet.</Text>
-                    </View>
-                )}
-            </ScrollView>
+                    )}
 
-            {/* Modal for Journal/Gratitude View */}
-            <Modal
-                visible={showJournalGratitude}
-                animationType="slide"
-                onRequestClose={() => setShowJournalGratitude(false)}
-            >
-                <View style={styles.modalContainer}>
-                    <TouchableOpacity
-                        style={styles.fullScreenCloseButton}
-                        onPress={() => setShowJournalGratitude(false)}
-                    >
-                        <FontAwesome5 name="times" size={24} color="#333" />
-                    </TouchableOpacity>
-                    <JournalGratitudeView />
-                </View>
-            </Modal>
+                    {/* --- Recent Gratitude List --- */}
+                    <Text style={[styles.recentTitle, { marginTop: 20, marginBottom: 10, marginLeft: 5 }]}>Recent Gratitude</Text>
 
-            <StreakModal
-                visible={showStreakModal}
-                onClose={() => setShowStreakModal(false)}
-                onComplete={handleStreakComplete}
-                challenge={networkChallenge}
-            />
-        </ImageBackground>
+                    {recentGratitudeList.length > 0 ? (
+                        recentGratitudeList.map((item, index) => (
+                            <View key={item._id || index} style={styles.entryCard}>
+                                <View style={styles.entryHeader}>
+                                    <Text style={[styles.entryType, styles.gratitudeType]}>Gratitude</Text>
+                                    <Text style={styles.entryTime}>{getFormattedDate(item)}</Text>
+                                </View>
+                                <Text style={styles.entryText} numberOfLines={3}>
+                                    {item.items.join(', ')}
+                                </Text>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={[styles.entryCard, { alignItems: 'center', justifyContent: 'center' }]}>
+                            <Text style={{ fontFamily: FONTS.regular, color: '#999' }}>No gratitude list yet.</Text>
+                        </View>
+                    )}
+
+                </ScrollView>
+
+
+                <StreakModal
+                    visible={showStreakModal}
+                    onClose={() => setShowStreakModal(false)}
+                    onComplete={handleStreakComplete}
+                    challenge={networkChallenge}
+                />
+            </View>
+        </ImageBackground >
     );
 };
 
@@ -259,9 +329,10 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
+
     container: {
         paddingHorizontal: 20,
-        paddingTop: 50,
+        paddingTop: 20,
         paddingBottom: 80
     },
     headerCard: {
@@ -274,10 +345,25 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 3.84,
         elevation: 5,
+        flexDirection: 'row', // Horizontal layout for text vs image
+        alignItems: 'center',
+        overflow: 'hidden' // Clip image
     },
     affirmationContent: {
         flex: 1,
         paddingRight: 10,
+        zIndex: 2, // Text above image
+    },
+    kikiContainer: {
+        width: 80,
+        height: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    kikiImage: {
+        width: 100,
+        height: 100,
+        opacity: 0.9,
     },
     affirmationTitleContainer: {
         flexDirection: 'row',
@@ -291,18 +377,11 @@ const styles = StyleSheet.create({
         marginLeft: 5,
     },
     affirmationText: {
-        fontSize: 22, // Slightly smaller to fit API text better
+        fontSize: 18, // Slightly smaller to prevent overflow
         fontFamily: FONTS.bold,
         color: '#333',
         marginTop: 5,
-    },
-    kikiImage: {
-        width: 100,
-        height: 100,
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        opacity: 0.8,
+        lineHeight: 24,
     },
 
     // Stats Section
@@ -327,6 +406,11 @@ const styles = StyleSheet.create({
         borderColor: '#FFABAB',
         minHeight: 110,
         justifyContent: 'center',
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     activeCardBorder: {
         borderColor: '#D14D72',
@@ -367,7 +451,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 3.84,
-        elevation: 5,
+        elevation: 3,
         borderWidth: 1,
         borderColor: '#FFABAB',
         minHeight: 100,
@@ -385,7 +469,7 @@ const styles = StyleSheet.create({
         color: '#D14D72'
     },
     gratitudeType: {
-        color: '#D14D72' // Matching color
+        color: '#D14D72'
     },
     entryTime: {
         fontSize: 12,
@@ -397,24 +481,6 @@ const styles = StyleSheet.create({
         color: '#333',
         lineHeight: 20,
         fontFamily: FONTS.regular,
-    },
-    modalContainer: {
-        flex: 1,
-        backgroundColor: '#FEF2F4',
-    },
-    fullScreenCloseButton: {
-        position: 'absolute',
-        top: 50,
-        right: 20,
-        zIndex: 10,
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        padding: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 5,
     },
 
     // Streak Modal Styles

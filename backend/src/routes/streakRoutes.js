@@ -4,23 +4,66 @@ import fetch from "node-fetch";
 
 const router = express.Router();
 
-// GET /api/streak/challenge - Get a random quote/challenge
+// GET /api/streak/challenge - Get a random quote/challenge (Persisted daily)
 router.get("/challenge", async (req, res) => {
     try {
-        // Fetch a random quote from a free API
-        const response = await fetch("https://zenquotes.io/api/random");
-        const data = await response.json();
+        const today = new Date().toISOString().split('T')[0];
 
-        if (Array.isArray(data) && data.length > 0) {
-            const quote = data[0];
-            const challenge = `Reflect on this: "${quote.q}" — ${quote.a}. How does this apply to your life today?`;
-            return res.json({ challenge });
-        } else {
-            return res.json({ challenge: "Reflect on one thing you are grateful for today." });
+        // 1. Check Cache
+        const cached = await import('../models/DailyCache.js').then(m => m.default.findOne({ date: today, type: 'challenge' }));
+        if (cached) {
+            return res.json(cached.content);
         }
+
+        // 2. Fetch from API or generate
+        let challenge;
+        try {
+            const response = await fetch("https://zenquotes.io/api/random");
+            const data = await response.json();
+
+            if (Array.isArray(data) && data.length > 0) {
+                const quote = data[0];
+                challenge = `Reflect on this: "${quote.q}" — ${quote.a}. How does this apply to your life today?`;
+            } else {
+                challenge = "Reflect on one thing you are grateful for today.";
+            }
+        } catch (apiError) {
+            console.error("Error fetching zenquotes:", apiError);
+            // Fallback to another API
+            try {
+                const fallbackResponse = await fetch("https://api.quotable.io/random");
+                const fallbackData = await fallbackResponse.json();
+                challenge = `Reflect on this: "${fallbackData.content}" — ${fallbackData.author}.`;
+            } catch (fallbackError) {
+                console.error("Error fetching fallback quote:", fallbackError);
+                challenge = "Reflect on your biggest achievement this week.";
+            }
+        }
+
+        const challengeContent = { challenge };
+
+        // 3. Save to Cache
+        const DailyCache = (await import('../models/DailyCache.js')).default;
+        await DailyCache.create({
+            date: today,
+            type: 'challenge',
+            content: challengeContent
+        });
+
+        res.json(challengeContent);
     } catch (error) {
-        console.error("Error fetching quote:", error);
-        res.json({ challenge: "Reflect on your biggest achievement this week." });
+        // Handle race condition
+        if (error.code === 11000) {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const cached = await import('../models/DailyCache.js').then(m => m.default.findOne({ date: today, type: 'challenge' }));
+                return res.json(cached ? cached.content : { challenge: "What makes you smile today?" });
+            } catch (retryError) {
+                return res.status(500).json({ message: retryError.message });
+            }
+        }
+        console.error("Error getting challenge:", error);
+        res.status(500).json({ message: "Internal Server Error" });
     }
 });
 

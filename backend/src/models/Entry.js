@@ -25,6 +25,15 @@ const entrySchema = new mongoose.Schema({
     displayDate: {
         type: String, // formatted date string for UI consistency
         required: true,
+    },
+    imageUrl: {
+        type: String,
+        default: ""
+    },
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
     }
 }, { timestamps: true });
 

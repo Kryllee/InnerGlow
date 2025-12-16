@@ -3,6 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "allowJs": true,
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "skipLibCheck": true,
     "paths": {
       "@/*": [
         "./*"

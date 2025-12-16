@@ -10,10 +10,17 @@ import { useFocusEffect } from "expo-router";
 import { useCallback } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useJournal } from "../context/JournalContext";
+
 export default function ProfileScreen() {
   const router = useRouter();
   const { userProfile, token, logout } = useUser();
+  const { gratitude, fetchEntries } = useJournal(); // Get gratitude data
   const [activeTab, setActiveTab] = useState("Pins")
+
+  // ... (rest of component) ...
+
+
 
   // New State for features
   const [weeklyMoods, setWeeklyMoods] = useState([]);
@@ -35,8 +42,9 @@ export default function ProfileScreen() {
       if (token && userProfile && userProfile._id) {
         fetchMoodData();
         fetchStreakData();
+        if (fetchEntries) fetchEntries(); // Sync journal/gratitude
       }
-    }, [token, userProfile])
+    }, [token, userProfile, fetchEntries])
   );
 
   const fetchMoodData = async () => {
@@ -210,7 +218,25 @@ export default function ProfileScreen() {
         )}
         {activeTab === "Boards" && <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>Boards content coming soon</BodyText></View>}
         {activeTab === "Journals" && <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>Journals content coming soon</BodyText></View>}
-        {activeTab === "Gratitude" && <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>Gratitude content coming soon</BodyText></View>}
+        {activeTab === "Gratitude" && (
+          <View style={s.gratitudeListContainer}>
+            {gratitude && gratitude.length > 0 ? (
+              gratitude.map((entry, index) => (
+                <View key={entry._id || index} style={s.gratitudeCard}>
+                  <Subheading style={s.gratitudeDate}>{new Date(entry.createdAt || entry.date).toLocaleDateString()}</Subheading>
+                  {entry.items.map((item, i) => (
+                    <View key={i} style={{ flexDirection: 'row', marginBottom: 5 }}>
+                      <BodyText style={{ color: '#D14D72', marginRight: 5 }}>•</BodyText>
+                      <BodyText style={s.gratitudeText}>{item}</BodyText>
+                    </View>
+                  ))}
+                </View>
+              ))
+            ) : (
+              <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>No gratitude entries yet.</BodyText></View>
+            )}
+          </View>
+        )}
 
         <Subheading style={s.sectionTitle}>This Week's Mood</Subheading>
         <View style={s.moodContainer}>
@@ -550,4 +576,30 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: "#FF6B6B",
   },
+  gratitudeListContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  gratitudeCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F0E0F0',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  gratitudeDate: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 8,
+  },
+  gratitudeText: {
+    fontSize: 14,
+    color: '#333',
+  }
 })
