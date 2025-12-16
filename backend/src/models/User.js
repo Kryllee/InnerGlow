@@ -24,13 +24,25 @@ const userSchema = new mongoose.Schema({
     profileImage: {
         type: String,
         default: "",
+    },
+    bio: {
+        type: String,
+        default: "",
+    },
+    streakCount: {
+        type: Number,
+        default: 0,
+    },
+    lastStreakDate: {
+        type: String, // Storing as YYYY-MM-DD
+        default: null
     }
 }, {
     timestamps: true
 });
 
-userSchema.pre("save", async function(next){
-    if(!this.isModified("password")){
+userSchema.pre("save", async function (next) {
+    if (!this.isModified("password")) {
         return next();
     }
 
@@ -39,7 +51,7 @@ userSchema.pre("save", async function(next){
     next();
 })
 
-userSchema.methods.comparePassword = async function (userPassword){
+userSchema.methods.comparePassword = async function (userPassword) {
     return await bcrypt.compare(userPassword, this.password);
 }
 

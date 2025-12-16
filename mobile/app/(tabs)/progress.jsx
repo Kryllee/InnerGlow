@@ -4,6 +4,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { FONTS } from '../constants/fonts';
 import JournalGratitudeView from '../components/journalGratitudeView';
 import { useJournal } from '../context/JournalContext';
+import { useUser } from '../context/UserContext';
 import { API_BASE_URL } from '../config';
 
 const API_URL = `${API_BASE_URL}/affirmation/daily`;
@@ -48,6 +49,7 @@ const StreakModal = ({ visible, onClose, onComplete, challenge }) => {
 
 const Progress = () => {
     const { entries, gratitude, isStreakActive, setIsStreakActive } = useJournal();
+    const { userProfile, token } = useUser();
     const [showJournalGratitude, setShowJournalGratitude] = useState(false);
 
     // Affirmation State
@@ -105,6 +107,16 @@ const Progress = () => {
 
         // Increment streak in backend
         try {
+            if (token && userProfile && userProfile._id) {
+                await fetch(`${API_BASE_URL}/streak/complete`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ userId: userProfile._id })
+                });
+            }
         } catch (error) {
             console.log("Error updating streak:", error);
         }

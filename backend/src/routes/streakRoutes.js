@@ -24,6 +24,30 @@ router.get("/challenge", async (req, res) => {
     }
 });
 
+// GET /api/streak/status/:userId - Get current streak status
+router.get("/status/:userId", async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const completedToday = user.lastStreakDate === today;
+
+        res.json({
+            streakCount: user.streakCount || 0,
+            completedToday,
+            lastStreakDate: user.lastStreakDate
+        });
+    } catch (error) {
+        console.error("Error getting streak status:", error);
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+
 // POST /api/streak/complete - Increment user streak
 router.post("/complete", async (req, res) => {
     try {
@@ -38,15 +62,37 @@ router.post("/complete", async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Increment streak
-        // Basic logic: Just increment. 
-        // Advanced logic (not implemented yet): Check if already completed today.
-        user.streakCount = (user.streakCount || 0) + 1;
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const lastStreak = user.lastStreakDate;
+
+        if (lastStreak === today) {
+            // Already completed today, just return current status
+            return res.json({
+                message: "Streak already updated for today",
+                streakCount: user.streakCount,
+                completedToday: true
+            });
+        }
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        if (lastStreak === yesterdayStr) {
+            // Consecutive day
+            user.streakCount = (user.streakCount || 0) + 1;
+        } else {
+            // Missed a day or first time
+            user.streakCount = 1;
+        }
+
+        user.lastStreakDate = today;
         await user.save();
 
         res.json({
             message: "Streak updated",
-            streakCount: user.streakCount
+            streakCount: user.streakCount,
+            completedToday: true
         });
 
     } catch (error) {

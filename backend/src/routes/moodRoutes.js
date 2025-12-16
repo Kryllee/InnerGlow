@@ -64,10 +64,16 @@ router.get("/weekly", protectRoute, async (req, res) => {
 router.get("/stats", protectRoute, async (req, res) => {
     try {
         const userId = req.user._id;
+        const { startDate, endDate } = req.query;
+
+        const matchStage = { userId };
+        if (startDate && endDate) {
+            matchStage.date = { $gte: startDate, $lte: endDate };
+        }
 
         // Aggregate to find the most common mood
         const stats = await Mood.aggregate([
-            { $match: { userId } },
+            { $match: matchStage },
             { $group: { _id: "$mood", count: { $sum: 1 } } },
             { $sort: { count: -1 } },
             { $limit: 1 },

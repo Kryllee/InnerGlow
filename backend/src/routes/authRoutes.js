@@ -44,7 +44,7 @@ router.post("/register", async (req, res) => {
         }
 
         // Generate profile image
-        const profileImage = `https://api.dicebear.com/9.x/pixel-art/svg?seed=${username}`;
+        const profileImage = `https://api.dicebear.com/9.x/pixel-art/png?seed=${username}`;
 
         // Create new user
         const user = new User({

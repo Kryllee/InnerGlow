@@ -26,7 +26,7 @@ const Index = () => {
     const [loading, setLoading] = useState(false);
 
     const router = useRouter();
-    const { updateProfile } = useUser();
+    const { updateProfile, login } = useUser();
 
     useEffect(() => {
         if (!hasShownSplash) {
@@ -62,12 +62,15 @@ const Index = () => {
 
             // Sync user data to context
             const names = data.user.fullName.split(' ');
-            updateProfile({
+            login({
                 firstName: names[0] || data.user.fullName,
                 surname: names.slice(1).join(' ') || '',
                 username: data.user.username,
-                avatar: { uri: data.user.profileImage }
-            });
+                email: data.user.email,
+                avatar: { uri: data.user.profileImage },
+                bio: data.user.bio || "",
+                _id: data.user._id
+            }, data.token);
 
             router.replace('/(tabs)/home');
 

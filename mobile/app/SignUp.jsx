@@ -20,7 +20,7 @@ export default function SignUp() {
     const [loading, setLoading] = useState(false);
 
     const router = useRouter();
-    const { updateProfile } = useUser();
+    const { updateProfile, login } = useUser();
 
     // Updates state and clears specific error
     const handleChange = (setter, key) => (t) => {
@@ -57,14 +57,16 @@ export default function SignUp() {
             }
 
             // Sync user data to context
-            // Backend returns fullName, we can split it or just store it
             const names = data.user.fullName.split(' ');
-            updateProfile({
+            login({
                 firstName: names[0] || data.user.fullName,
                 surname: names.slice(1).join(' ') || '',
                 username: data.user.username,
-                avatar: { uri: data.user.profileImage } // DiceBear URL
-            });
+                email: data.user.email,
+                avatar: { uri: data.user.profileImage },
+                bio: data.user.bio || "",
+                _id: data.user._id // Save ID for API calls
+            }, data.token);
 
             // Navigate to Home
             router.replace('/(tabs)/home');

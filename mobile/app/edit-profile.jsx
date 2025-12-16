@@ -1,23 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useUser } from "./context/UserContext";
 import { Ionicons } from "@expo/vector-icons";
 import { horizontalScale, verticalScale, moderateScale } from "./utils/responsive";
 import { FONTS } from "./constants/fonts";
+import { API_BASE_URL } from "./config";
+
+import * as ImagePicker from 'expo-image-picker';
 
 const { width } = Dimensions.get("window");
 
 export default function EditProfileScreen() {
     const router = useRouter();
-    const { userProfile, updateProfile } = useUser();
+    const { userProfile, updateProfile, token } = useUser();
+    const [loading, setLoading] = useState(false);
 
     // Local state initialized with context data
     const [firstName, setFirstName] = useState(userProfile.firstName);
     const [surname, setSurname] = useState(userProfile.surname);
     const [username, setUsername] = useState(userProfile.username);
-    const [bio, setBio] = useState(userProfile.bio);
+    const [bio, setBio] = useState(userProfile.bio || "");
+    const [selectedImage, setSelectedImage] = useState(null); // stores URI of picked image
 
     // State to track if any changes were made or input interactions occurred
     const [hasChanges, setHasChanges] = useState(false);
@@ -25,19 +30,98 @@ export default function EditProfileScreen() {
     // Function to handle input changes and set dirty state
     const handleInputChange = (setter, value) => {
         setter(value);
-        setHasChanges(true); // Requirement: "if they type any in input field, the done button will change color"
+        setHasChanges(true);
     };
 
-    const handleDone = () => {
-        // Update context with new values
-        updateProfile({
-            firstName,
-            surname,
-            username,
-            bio,
+    const pickImage = async () => {
+        // No permissions request is necessary for launching the image library
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.5,
         });
-        router.back();
+
+        if (!result.canceled) {
+            setSelectedImage(result.assets[0].uri);
+            setHasChanges(true);
+        }
     };
+
+    const handleDone = async () => {
+        setLoading(true);
+        try {
+            if (token) {
+                let avatarUrl = null;
+
+                // 1. Upload Image if selected
+                if (selectedImage) {
+                    const formData = new FormData();
+                    formData.append('image', {
+                        uri: selectedImage,
+                        type: 'image/jpeg', // 'image/jpeg' or appropriate type
+                        name: 'avatar.jpg',
+                    });
+
+                    const uploadRes = await fetch(`${API_BASE_URL}/users/upload-avatar`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'multipart/form-data',
+                        },
+                        body: formData
+                    });
+
+                    if (uploadRes.ok) {
+                        const uploadData = await uploadRes.json();
+                        avatarUrl = uploadData.imageUrl;
+                    } else {
+                        console.log("Upload failed", await uploadRes.text());
+                    }
+                }
+
+                // 2. Update Profile Text Data (and avatarUrl if changed)
+                const fullName = `${firstName} ${surname}`.trim();
+                const bodyData = { fullName, username, bio };
+                if (avatarUrl) bodyData.avatarUrl = avatarUrl;
+
+                const res = await fetch(`${API_BASE_URL}/users/update-profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(bodyData)
+                });
+
+                if (res.ok) {
+                    const updatedUser = await res.json();
+                    // Process response to match context structure
+                    const names = updatedUser.user.fullName.split(' ');
+                    updateProfile({
+                        firstName: names[0] || updatedUser.user.fullName, // simplified split
+                        surname: names.slice(1).join(' ') || '',
+                        username: updatedUser.user.username,
+                        bio: updatedUser.user.bio,
+                        avatar: { uri: updatedUser.user.profileImage } // Ensure it's in expected format
+                    });
+                }
+            } else {
+                // Fallback for dev/no-token
+                updateProfile({
+                    firstName, surname, username, bio,
+                    ...(selectedImage && { avatar: { uri: selectedImage } })
+                });
+            }
+            router.back();
+        } catch (error) {
+            console.log("Error updating profile:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const displayAvatar = selectedImage ? { uri: selectedImage } : userProfile.avatar;
 
     return (
         <SafeAreaView style={styles.safeArea}>
@@ -54,17 +138,21 @@ export default function EditProfileScreen() {
                         onPress={handleDone}
                         disabled={!hasChanges}
                     >
-                        <Text style={styles.doneButtonText}>Done</Text>
+                        <Text style={styles.doneButtonText}>{loading ? "Saving..." : "Done"}</Text>
                     </TouchableOpacity>
                 </View>
 
                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-                        {/* Avatar Section - Positioned to overlap pink header */}
+                        {/* Avatar Section */}
                         <View style={styles.avatarContainer}>
-                            <View style={styles.avatarPlaceholder} />
-                            <TouchableOpacity style={styles.editAvatarBadge}>
+                            {displayAvatar ? (
+                                <Image source={displayAvatar} style={styles.avatarPlaceholder} />
+                            ) : (
+                                <View style={styles.avatarPlaceholder} />
+                            )}
+                            <TouchableOpacity style={styles.editAvatarBadge} onPress={pickImage}>
                                 <Text style={styles.editAvatarText}>Edit</Text>
                             </TouchableOpacity>
                         </View>

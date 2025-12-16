@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { BlurView } from 'expo-blur';
 import { Subheading, BodyText } from '../components/CustomText';
 import { useRouter } from "expo-router";
+import { useUser } from "../context/UserContext";
+import { API_BASE_URL } from "../config";
 import { MOCK_PINS } from "../data/pins";
 
 // Simple Masonry Helper
@@ -21,6 +23,8 @@ const Home = () => {
     const [showPopup, setShowPopup] = useState(false);
     const router = useRouter();
 
+    const { userProfile, token } = useUser();
+
     // Split pins for masonry layout
     const { left, right } = splitPins(MOCK_PINS);
 
@@ -30,6 +34,28 @@ const Home = () => {
         const timer = setTimeout(() => setShowPopup(true), 500);
         return () => clearTimeout(timer);
     }, []);
+
+    const handleLogMood = async (mood) => {
+        setShowPopup(false);
+        try {
+            if (token && userProfile && userProfile._id) {
+                await fetch(`${API_BASE_URL}/mood`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        userId: userProfile._id,
+                        mood: mood,
+                        date: new Date().toISOString().split('T')[0]
+                    })
+                });
+            }
+        } catch (error) {
+            console.log("Error logging mood:", error);
+        }
+    };
 
     const isForYouActive = activeTab === "forYou";
 
@@ -96,23 +122,23 @@ const Home = () => {
                             <BodyText style={styles.closeButtonText}>✕</BodyText>
                         </TouchableOpacity>
                         <View style={styles.moodRow}>
-                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => handleLogMood("Great")}>
                                 <Image source={require("../(tabs)/assets/images/Great Emote.png")} style={styles.moodIcon} />
                                 <BodyText style={styles.moodLabel}>Great</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => handleLogMood("Good")}>
                                 <Image source={require("../(tabs)/assets/images/good emote.png")} style={styles.moodIcon} />
                                 <BodyText style={styles.moodLabel}>Good</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => handleLogMood("Okay")}>
                                 <Image source={require("../(tabs)/assets/images/okay emote.png")} style={styles.moodIcon} />
                                 <BodyText style={styles.moodLabel}>Okay</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => handleLogMood("Low")}>
                                 <Image source={require("../(tabs)/assets/images/low emote.png")} style={styles.moodIcon} />
                                 <BodyText style={styles.moodLabel}>Low</BodyText>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.moodItem} onPress={() => setShowPopup(false)}>
+                            <TouchableOpacity style={styles.moodItem} onPress={() => handleLogMood("Struggling")}>
                                 <Image source={require("../(tabs)/assets/images/struggling emote.png")} style={styles.moodIcon} />
                                 <BodyText style={styles.moodLabel}>Struggling</BodyText>
                             </TouchableOpacity>
