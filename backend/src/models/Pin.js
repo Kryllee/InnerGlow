@@ -8,6 +8,11 @@ const pinSchema = new mongoose.Schema({
         ref: "User", // Connects to your User model
         required: true
     },
+    // The original creator (if this is a saved/cloned pin)
+    originalAuthor: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User"
+    },
 
     // 2. PIN DETAILS
     // In your frontend you used 'title', so we use 'title' here (not 'name')
@@ -29,16 +34,28 @@ const pinSchema = new mongoose.Schema({
         required: true,
         index: true // Helps load pins faster when filtering by board
     },
+    boardId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Board"
+    },
+    isPrivate: {
+        type: Boolean,
+        default: false
+    },
+    isSaved: {
+        type: Boolean,
+        default: false
+    },
 
     // 4. IMAGES ARRAY
     // InnerGlow allows multiple photos in one pin (Carousel)
     images: [{
-        url: { 
-            type: String, 
-            required: true 
+        url: {
+            type: String,
+            required: true
         },
         // Optional: You can save width/height here if you want a masonry layout later
-        width: Number, 
+        width: Number,
         height: Number
     }]
 

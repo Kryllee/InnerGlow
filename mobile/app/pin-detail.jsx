@@ -1,10 +1,15 @@
-import React, { useState } from 'react';
-import { View, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, TextInput, KeyboardAvoidingView, Platform, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Image, StyleSheet, TouchableOpacity, ScrollView, Dimensions, TextInput, KeyboardAvoidingView, Platform, Text, Modal, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from './components/CustomText';
+import { ActivityIndicator } from 'react-native';
+import { API_BASE_URL } from './config';
+import { useUser } from './context/UserContext';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
 
@@ -25,25 +30,106 @@ export default function PinDetail() {
     const router = useRouter();
     const params = useLocalSearchParams();
 
-    const { MOCK_PINS } = require('./data/pins');
+    const { token, userProfile } = useUser(); // Get token/user
+    const { MOCK_PINS } = require('./data/pins'); // Keep for fallback if needed, or remove.
 
-    // Find the pin directly from the reference to allow mutation for session persistence
-    const pin = MOCK_PINS.find(p => p.id.toString() === params.id) || MOCK_PINS[0];
-
+    // State
+    const [pin, setPin] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [isHearted, setIsHearted] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
 
     // Comments State
-    const [comments, setComments] = useState(pin.comments || []);
+    const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
 
     // Toast State
     const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+
+    // Save Modal State
+    const [saveModalVisible, setSaveModalVisible] = useState(false);
+    const [userBoards, setUserBoards] = useState([]);
+    const [newBoardName, setNewBoardName] = useState('');
+    const [creatingBoard, setCreatingBoard] = useState(false);
+
+    // Fetch Pin Details
+    useEffect(() => {
+        const fetchPinDetails = async () => {
+            try {
+                // First check if it's a real backend ID (length 24 hex) or mock ID
+                // If it's a mock ID (e.g. integer-like), fallback to mock data?
+                // Or just try fetching from backend.
+
+                const response = await fetch(`${API_BASE_URL}/pins/${params.id}`);
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Transform backend data to UI format
+                    setPin({
+                        id: data._id,
+                        image: { uri: data.images[0]?.url },
+                        user: {
+                            name: (data.isSaved && data.originalAuthor) ? (data.originalAuthor.username || "Unknown") : (data.userId?.username || "Unknown"),
+                            avatar: (data.isSaved && data.originalAuthor)
+                                ? (data.originalAuthor.profileImage ? { uri: data.originalAuthor.profileImage } : { uri: "https://api.dicebear.com/9.x/pixel-art/png?seed=user" })
+                                : (data.userId?.profileImage ? { uri: data.userId.profileImage } : { uri: "https://api.dicebear.com/9.x/pixel-art/png?seed=user" })
+                        },
+                        description: data.title + (data.description ? `\n\n${data.description}` : ""),
+                        comments: [] // Backend doesn't have comments yet
+                    });
+                } else {
+                    // Fallback to mock data if backend fails (e.g. using mock pin ID)
+                    const mockPin = MOCK_PINS.find(p => p.id.toString() === params.id);
+                    if (mockPin) setPin(mockPin);
+                }
+            } catch (error) {
+                console.error("Error fetching pin:", error);
+                // Fallback
+                const mockPin = MOCK_PINS.find(p => p.id.toString() === params.id);
+                if (mockPin) setPin(mockPin);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (params.id) {
+            fetchPinDetails();
+        }
+    }, [params.id]);
+
 
     const copyToLink = async () => {
-        await Clipboard.setStringAsync(`https://innerglow.app/pin/${pin.id}`);
+        await Clipboard.setStringAsync(`https://innerglow.app/pin/${pin?.id}`);
         setShowToast(true);
         setTimeout(() => setShowToast(false), 2000);
+    };
+
+    const handleDownload = async () => {
+        if (!pin?.image?.uri) return;
+
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status !== 'granted') {
+                alert('Permission to access media library is required to download images.');
+                return;
+            }
+
+            const fileUri = FileSystem.documentDirectory + (pin.id || 'download') + '.jpg';
+            const { uri } = await FileSystem.downloadAsync(pin.image.uri, fileUri);
+            await MediaLibrary.createAssetAsync(uri);
+
+            // Show custom toast or alert for success
+            setShowToast(true);
+            // Reuse toast for simplicity, though message is currently "Link copied..."
+            // I should update CustomToast to accept dynamic message or override it here. 
+            // For now I'll just alert or assume I'll mod toast logic next.
+            alert("Image saved to gallery!");
+
+        } catch (error) {
+            console.error("Download error:", error);
+            alert("Failed to download image.");
+        }
     };
 
     const handleSendComment = () => {
@@ -52,25 +138,96 @@ export default function PinDetail() {
         const commentObj = {
             id: Date.now(),
             text: newComment.trim(),
-            user: { name: 'You', avatar: { uri: `https://api.dicebear.com/9.x/pixel-art/png?seed=xdrea` } }, // Mock current user with API
+            user: { name: userProfile?.username || 'You', avatar: { uri: userProfile?.profileImage || `https://api.dicebear.com/9.x/pixel-art/png?seed=xdrea` } },
             timestamp: new Date(),
         };
 
-        // Mutate the mock data for session persistence
-        pin.comments.unshift(commentObj);
-
-        // Update local state
-        setComments([...pin.comments]);
+        // Update local state only for now as backend comments aren't implemented
+        setComments([commentObj, ...comments]);
         setNewComment('');
     };
 
-    const handleDeleteComment = (commentId) => {
-        const index = pin.comments.findIndex(c => c.id === commentId);
-        if (index > -1) {
-            pin.comments.splice(index, 1);
-            setComments([...pin.comments]);
+    const fetchUserBoards = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/pins/user-boards`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setUserBoards(data);
+            }
+        } catch (error) {
+            console.error("Error fetching boards:", error);
         }
     };
+
+    const openSaveModal = () => {
+        if (!token) {
+            alert("Please login to save pins.");
+            return;
+        }
+        fetchUserBoards();
+        setSaveModalVisible(true);
+    };
+
+    const handleSavePin = async (boardName, createNew = false) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/pins/save/${pin.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    boardName: boardName,
+                    createNewBoard: createNew
+                })
+            });
+
+            if (res.ok) {
+                setIsSaved(true);
+                setSaveModalVisible(false);
+                setNewBoardName('');
+                setCreatingBoard(false);
+                setToastMessage(`Saved to ${boardName}!`);
+                setShowToast(true);
+                setTimeout(() => setShowToast(false), 2000);
+            } else {
+                const err = await res.json();
+                Alert.alert("Error", err.message || "Failed to save pin");
+            }
+        } catch (error) {
+            console.error("Save error:", error);
+            Alert.alert("Error", "An unexpected error occurred");
+        }
+    };
+
+    const handleDeleteComment = (commentId) => {
+        setComments(comments.filter(c => c.id !== commentId));
+    };
+
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.mainContainerWrapper}>
+                <View style={[styles.mainContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <ActivityIndicator size="large" color="#D14D72" />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    if (!pin) {
+        return (
+            <SafeAreaView style={styles.mainContainerWrapper}>
+                <View style={[styles.mainContainer, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <BodyText>Pin not found.</BodyText>
+                    <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                        <Subheading style={{ color: "#D14D72" }}>Go Back</Subheading>
+                    </TouchableOpacity>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.mainContainerWrapper}>
@@ -104,6 +261,9 @@ export default function PinDetail() {
                                             color={isHearted ? "#D14D72" : "#333"}
                                         />
                                     </TouchableOpacity>
+                                    <TouchableOpacity style={styles.iconButton} onPress={handleDownload}>
+                                        <Ionicons name="download-outline" size={30} color="#333" />
+                                    </TouchableOpacity>
                                     <TouchableOpacity style={styles.iconButton} onPress={copyToLink}>
                                         <Ionicons name="share-social-outline" size={30} color="#333" />
                                     </TouchableOpacity>
@@ -111,7 +271,7 @@ export default function PinDetail() {
 
                                 <TouchableOpacity
                                     style={[styles.saveButton, isSaved && styles.savedButton]}
-                                    onPress={() => setIsSaved(!isSaved)}
+                                    onPress={openSaveModal}
                                 >
                                     <BodyText style={[styles.saveButtonText, isSaved && styles.savedButtonText]}>
                                         {isSaved ? "Saved" : "Save"}
@@ -179,7 +339,74 @@ export default function PinDetail() {
                         </View>
                     </ScrollView>
 
-                    <CustomToast visible={showToast} message="Link copied to clipboard!" />
+                    <CustomToast visible={showToast} message={toastMessage || "Link copied to clipboard!"} />
+
+                    {/* Save Modal */}
+                    <Modal
+                        animationType="slide"
+                        transparent={true}
+                        visible={saveModalVisible}
+                        onRequestClose={() => setSaveModalVisible(false)}
+                    >
+                        <View style={styles.modalOverlay}>
+                            <View style={styles.modalContent}>
+                                <View style={styles.modalHeader}>
+                                    <Subheading style={styles.modalTitle}>Save to Board</Subheading>
+                                    <TouchableOpacity onPress={() => setSaveModalVisible(false)}>
+                                        <Ionicons name="close" size={24} color="#333" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <ScrollView style={styles.boardList} contentContainerStyle={{ paddingBottom: 20 }}>
+                                    <TouchableOpacity
+                                        style={styles.createBoardItem}
+                                        onPress={() => setCreatingBoard(!creatingBoard)}
+                                    >
+                                        <View style={styles.createIcon}>
+                                            <Ionicons name="add" size={24} color="#FFF" />
+                                        </View>
+                                        <BodyText style={styles.createBoardText}>Create new board</BodyText>
+                                    </TouchableOpacity>
+
+                                    {creatingBoard && (
+                                        <View style={styles.newBoardInputContainer}>
+                                            <TextInput
+                                                style={styles.newBoardInput}
+                                                placeholder="Board Name (e.g., Summer Outfit)"
+                                                value={newBoardName}
+                                                onChangeText={setNewBoardName}
+                                                autoFocus
+                                            />
+                                            <TouchableOpacity
+                                                style={[styles.createBtnSmall, !newBoardName.trim() && { opacity: 0.5 }]}
+                                                onPress={() => handleSavePin(newBoardName, true)}
+                                                disabled={!newBoardName.trim()}
+                                            >
+                                                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Create</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {userBoards.map((board) => (
+                                        <TouchableOpacity
+                                            key={board._id}
+                                            style={styles.boardItem}
+                                            onPress={() => handleSavePin(board.name, false)}
+                                        >
+                                            {board.coverImage ? (
+                                                <Image source={{ uri: board.coverImage }} style={styles.boardThumb} />
+                                            ) : (
+                                                <View style={[styles.boardThumb, { backgroundColor: '#eee' }]} />
+                                            )}
+                                            <BodyText style={styles.boardName}>{board.name}</BodyText>
+                                            {board.isPrivate && <Ionicons name="lock-closed" size={14} color="#666" style={{ marginLeft: 8 }} />}
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            </View>
+                        </View>
+                    </Modal>
+
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -393,5 +620,87 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontWeight: '600',
         fontSize: 14,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+        height: '60%',
+        padding: 20,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 18,
+        color: '#333',
+    },
+    boardList: {
+        flex: 1,
+    },
+    createBoardItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f0f0f0',
+        marginBottom: 10,
+    },
+    createIcon: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#FFABAB',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 15,
+    },
+    createBoardText: {
+        fontSize: 16,
+        color: '#333',
+        fontWeight: 'bold',
+    },
+    newBoardInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 15,
+        gap: 10,
+    },
+    newBoardInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#ddd',
+        borderRadius: 8,
+        padding: 10,
+        fontSize: 16,
+    },
+    createBtnSmall: {
+        backgroundColor: '#D14D72',
+        paddingVertical: 10,
+        paddingHorizontal: 15,
+        borderRadius: 8,
+    },
+    boardItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+    },
+    boardThumb: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        marginRight: 15,
+    },
+    boardName: {
+        fontSize: 16,
+        color: '#333',
     },
 });

@@ -1,17 +1,62 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, ScrollView, Image, Dimensions, TextInput, TouchableOpacity, StyleSheet, FlatList, Text } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Subheading, BodyText } from '../components/CustomText';
 import { MOCK_PINS } from '../data/pins';
+import { useUser } from '../context/UserContext';
+import { API_BASE_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 
 const Search = () => {
   const router = useRouter();
+  const { token } = useUser();
   const [searchText, setSearchText] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const topScrollRef = useRef(null);
+
+  // Debounced Search Effect
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchText.trim()) {
+        performSearch(searchText);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText]);
+
+  const performSearch = async (query) => {
+    setSearching(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/pins?search=${encodeURIComponent(query)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Transform if needed (backend matches UI structure mostly)
+        // UI expects: id, image, board, description. 
+        // Backend returns: _id, images[{url}], board, description, title
+        const transformed = data.map(p => ({
+          id: p._id,
+          image: { uri: p.images[0]?.url },
+          description: p.title || p.description,
+          board: p.board
+        }));
+        setSearchResults(transformed);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setSearching(false);
+    }
+  };
+
 
   const onTopMomentumScrollEnd = (e) => {
     const x = e.nativeEvent.contentOffset.x;
@@ -26,15 +71,11 @@ const Search = () => {
 
   // "Ideas you might like" - mixing some other boards or picking specific IDs
   // Original code used id1.png (id:1) and id2.png (id:2)
+  // "Ideas you might like" - mixing some other boards or picking specific IDs
+  // Original code used id1.png (id:1) and id2.png (id:2)
   const featuredPins = MOCK_PINS.filter(p => [1, 2].includes(p.id));
 
-  // Search Results
-  const searchResults = searchText
-    ? MOCK_PINS.filter(p =>
-      p.description.toLowerCase().includes(searchText.toLowerCase()) ||
-      p.board.toLowerCase().includes(searchText.toLowerCase())
-    )
-    : [];
+  // Remove local filtering - we use searchResults state now
 
   const handlePinPress = (id) => {
     router.push({ pathname: '/pin-detail', params: { id } });
@@ -75,7 +116,9 @@ const Search = () => {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={s.emptyState}>
-                <BodyText style={{ color: '#666' }}>No results found for "{searchText}"</BodyText>
+                <BodyText style={{ color: '#666', textAlign: 'center' }}>
+                  {searching ? "Searching..." : `No results found for "${searchText}"`}
+                </BodyText>
               </View>
             }
             renderItem={({ item }) => (
@@ -283,7 +326,9 @@ const s = StyleSheet.create({
   },
   // Search Results
   searchResultsContainer: {
-    padding: 10,
+    paddingTop: 65, // Add padding to push content below the absolute search bar
+    paddingHorizontal: 10,
+    paddingBottom: 20
   },
   searchResultsRow: {
     justifyContent: 'space-between',
@@ -301,7 +346,9 @@ const s = StyleSheet.create({
     resizeMode: 'cover',
   },
   emptyState: {
-    marginTop: 50,
+    flex: 1,
+    marginTop: 100, // Push down below search bar
+    justifyContent: 'center',
     alignItems: 'center',
   }
 });
