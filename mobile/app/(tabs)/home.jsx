@@ -1,11 +1,10 @@
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text } from "react-native";
-import React, { useState, useEffect } from "react";
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text, RefreshControl, ActivityIndicator } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
 import { BlurView } from 'expo-blur';
 import { Subheading, BodyText } from '../components/CustomText';
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useUser } from "../context/UserContext";
 import { API_BASE_URL } from "../config";
-import { MOCK_PINS } from "../data/pins";
 
 // Simple Masonry Helper
 const splitPins = (pins) => {
@@ -19,18 +18,99 @@ const splitPins = (pins) => {
 };
 
 const Home = () => {
+    const { board } = useLocalSearchParams();
     const [activeTab, setActiveTab] = useState("forYou");
     const [showPopup, setShowPopup] = useState(false);
     const router = useRouter();
 
+    // Initialize tab from params if provided
+    useEffect(() => {
+        if (board) {
+            setActiveTab(board);
+        }
+    }, [board]);
+
     const { userProfile, token } = useUser();
 
-    // Split pins for masonry layout
-    const { left, right } = splitPins(MOCK_PINS);
+    // Data State
+    const [pins, setPins] = useState([]);
+    const [boards, setBoards] = useState([]); // List of available boards
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Initial Popup Logic (Mock for now, replacing previous timer)
+    // Fetch Boards
+    const fetchBoards = async () => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/pins/boards`);
+            if (res.ok) {
+                const data = await res.json();
+                setBoards(data);
+            }
+        } catch (err) {
+            console.error("Error fetching boards:", err);
+        }
+    };
+
+    // Fetch Pins
+    const fetchPins = async () => {
+        try {
+            let url = `${API_BASE_URL}/pins`;
+            if (activeTab !== 'forYou') {
+                url += `?board=${encodeURIComponent(activeTab)}`;
+            }
+
+            const res = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await res.json();
+
+            if (res.ok) {
+                const formatted = data.map(p => ({
+                    id: p._id,
+                    image: { uri: p.images[0]?.url },
+                    description: p.title,
+                    height: p.images[0]?.height || 200 + Math.random() * 100,
+                    user: p.userId
+                }));
+                setPins(formatted);
+            }
+        } catch (err) {
+            console.error("Error fetching pins:", err);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
     useEffect(() => {
-        // In real app, check context if logged today
+        fetchBoards();
+    }, []);
+
+    useEffect(() => {
+        fetchPins();
+    }, [activeTab]);
+
+    // Refresh when looking at screen
+    useFocusEffect(
+        useCallback(() => {
+            fetchBoards(); // Update boards list too
+            fetchPins();
+        }, [activeTab])
+    );
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchBoards();
+        fetchPins();
+    };
+
+    // Split pins for masonry layout
+    const { left, right } = splitPins(pins);
+
+    // Initial Popup Logic
+    useEffect(() => {
         const timer = setTimeout(() => setShowPopup(true), 500);
         return () => clearTimeout(timer);
     }, []);
@@ -59,53 +139,73 @@ const Home = () => {
 
     const isForYouActive = activeTab === "forYou";
 
+    const renderPin = (pin) => (
+        <TouchableOpacity
+            key={pin.id}
+            style={styles.pinCard}
+            onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin.id } })}
+        >
+            <Image source={pin.image} style={[styles.image, { height: pin.height }]} />
+            {pin.description && (
+                <BodyText style={styles.pinCaption} numberOfLines={2}>{pin.description}</BodyText>
+            )}
+            {pin.user && (
+                <View style={styles.userRow}>
+                    <Image source={{ uri: pin.user.profileImage }} style={styles.userAvatar} />
+                    <BodyText style={styles.userName} numberOfLines={1}>{pin.user.username}</BodyText>
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+
     return (
         <View style={styles.container}>
-            <View style={styles.tabBar}>
-                <TouchableOpacity onPress={() => setActiveTab("forYou")}>
-                    <Subheading style={isForYouActive ? styles.activeTabText : styles.tabText}>For you</Subheading>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setActiveTab("board")}>
-                    <Subheading style={isForYouActive ? styles.tabText : styles.activeTabText}>Board Name</Subheading>
-                </TouchableOpacity>
+            <View style={styles.tabBarWrapper}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBar}>
+                    <TouchableOpacity onPress={() => setActiveTab("forYou")}>
+                        <Subheading style={isForYouActive ? styles.activeTabText : styles.tabText}>For you</Subheading>
+                    </TouchableOpacity>
+
+                    {boards.map(board => (
+                        <TouchableOpacity key={board} onPress={() => setActiveTab(board)}>
+                            <Subheading style={activeTab === board ? styles.activeTabText : styles.tabText}>{board}</Subheading>
+                        </TouchableOpacity>
+                    ))}
+
+                    {/* Fallback if no boards yet */}
+                    {boards.length === 0 && (
+                        <TouchableOpacity onPress={() => setActiveTab("My Board")}>
+                            <Subheading style={activeTab === "My Board" ? styles.activeTabText : styles.tabText}>My Board</Subheading>
+                        </TouchableOpacity>
+                    )}
+                </ScrollView>
             </View>
 
             <View style={styles.content}>
-                {isForYouActive ? (
-                    <ScrollView contentContainerStyle={styles.gridContainer} showsVerticalScrollIndicator={false}>
-                        <View style={styles.grid}>
-                            <View style={styles.column}>
-                                {left.map((pin) => (
-                                    <TouchableOpacity
-                                        key={pin.id}
-                                        style={styles.pinCard}
-                                        onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin.id } })}
-                                    >
-                                        <Image source={pin.image} style={[styles.image, { height: pin.height }]} />
-                                        {pin.description && (
-                                            <BodyText style={styles.pinCaption} numberOfLines={2}>{pin.description}</BodyText>
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                            <View style={styles.column}>
-                                {right.map((pin) => (
-                                    <TouchableOpacity
-                                        key={pin.id}
-                                        style={styles.pinCard}
-                                        onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin.id } })}
-                                    >
-                                        <Image source={pin.image} style={[styles.image, { height: pin.height }]} />
-                                        {pin.description && (
-                                            <BodyText style={styles.pinCaption} numberOfLines={2}>{pin.description}</BodyText>
-                                        )}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        </View>
-                    </ScrollView>
+                {loading && !refreshing ? (
+                    <ActivityIndicator size="large" color="#d14d72" style={{ marginTop: 50 }} />
                 ) : (
-                    <BodyText style={styles.boardText}>Nothing here yet.{"\n"}Pin a post to get started!</BodyText>
+                    <ScrollView
+                        contentContainerStyle={styles.gridContainer}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                    >
+                        {pins.length > 0 ? (
+                            <View style={styles.grid}>
+                                <View style={styles.column}>
+                                    {left.map(pin => renderPin(pin))}
+                                </View>
+                                <View style={styles.column}>
+                                    {right.map(pin => renderPin(pin))}
+                                </View>
+                            </View>
+                        ) : (
+                            <BodyText style={styles.boardText}>
+                                {activeTab === 'forYou' ? "No pins found." : "No pins in this board yet."} {"\n"}
+                                <Text style={{ color: '#d14d72' }}>Create one to get started!</Text>
+                            </BodyText>
+                        )}
+                    </ScrollView>
                 )}
             </View>
 
@@ -156,10 +256,12 @@ const styles = StyleSheet.create({
         backgroundColor: "#fff",
         paddingTop: 40,
     },
+    tabBarWrapper: {
+        height: 60,
+    },
     tabBar: { // Tab bar
         flexDirection: "row",
         alignItems: "center",
-        paddingVertical: 12,
         paddingHorizontal: 20,
         backgroundColor: "#fef2f4",
         gap: 20,
@@ -298,6 +400,22 @@ const styles = StyleSheet.create({
         color: "#ff9eb4",
         textAlign: "center",
     },
+    userRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 6,
+        marginLeft: 4
+    },
+    userAvatar: {
+        width: 16,
+        height: 16,
+        borderRadius: 8,
+        marginRight: 4
+    },
+    userName: {
+        fontSize: 10,
+        color: '#666'
+    }
 });
 
 export default Home;

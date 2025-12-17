@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { View, ScrollView, Image, StyleSheet, TouchableOpacity } from "react-native"
+import { View, ScrollView, Image, StyleSheet, TouchableOpacity, Modal } from "react-native"
 import { FontAwesome5 } from "@expo/vector-icons"
 import { Subheading, BodyText } from '../components/CustomText';
 import { API_BASE_URL } from "../config";
@@ -18,6 +18,8 @@ export default function ProfileScreen() {
   const { gratitude, fetchEntries } = useJournal(); // Get gratitude data
   const [activeTab, setActiveTab] = useState("Pins")
 
+
+
   // ... (rest of component) ...
 
 
@@ -26,6 +28,7 @@ export default function ProfileScreen() {
   const [weeklyMoods, setWeeklyMoods] = useState([]);
   const [mostCommonMood, setMostCommonMood] = useState(null);
   const [streakData, setStreakData] = useState({ streakCount: 0, completedToday: false });
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   // Load static assets for moods
   const moodAssets = {
@@ -118,27 +121,66 @@ export default function ProfileScreen() {
     }
   };
 
-  const pinImages = [
-    { id: 1, image: require("../(tabs)/assets/images/1image.png"), column: "left", height: 174 },
-    { id: 2, image: require("../(tabs)/assets/images/2image.png"), column: "right", height: 280 },
-    { id: 3, image: require("../(tabs)/assets/images/3image.png"), column: "left", height: 280 },
-    { id: 4, image: require("../(tabs)/assets/images/4image.png"), column: "right", height: 101 },
-    { id: 5, image: require("../(tabs)/assets/images/5image.png"), column: "left", height: 174 },
-  ]
+  // Data State
+  const [userPins, setUserPins] = useState([]);
+  const [userBoards, setUserBoards] = useState([]);
+  const [loadingContent, setLoadingContent] = useState(true);
 
-  const leftImages = pinImages.filter((img) => img.column === "left")
-  const rightImages = pinImages.filter((img) => img.column === "right")
+  // Fetch User Content
+  const fetchUserContent = async () => {
+    try {
+      if (!token || !userProfile?._id) return;
 
+      // 1. Fetch User's Boards with Covers
+      const boardsRes = await fetch(`${API_BASE_URL}/pins/user-boards`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (boardsRes.ok) {
+        const boardsData = await boardsRes.json();
+        setUserBoards(boardsData);
+      }
 
-  if (!userProfile) { // Handle loading/no user state (since context is null initially)
-    return (
-      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <BodyText>Loading Profile...</BodyText>
-      </View>
-    )
-  }
+      // 2. Fetch User's Pins (filtered by userId)
+      const pinsRes = await fetch(`${API_BASE_URL}/pins?userId=${userProfile._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (pinsRes.ok) {
+        const pinsData = await pinsRes.json();
+        setUserPins(pinsData);
+      }
+    } catch (err) {
+      console.error("Error fetching profile content:", err);
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchUserContent();
+    }, [token, userProfile])
+  );
+
+  // Helper to split pins
+  const splitPins = (pins) => {
+    const left = [];
+    const right = [];
+    pins.forEach((pin, index) => {
+      if (index % 2 === 0) left.push(pin);
+      else right.push(pin);
+    });
+    return { left, right };
+  };
+
+  if (!userProfile) return null;
 
   const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     logout();
     router.replace("/");
   };
@@ -151,7 +193,7 @@ export default function ProfileScreen() {
           {userProfile.avatar ? (
             <Image source={userProfile.avatar} style={s.avatar} />
           ) : (
-            <View style={s.avatar} /> // Fallback placeholder
+            <View style={s.avatar} />
           )}
           <Subheading style={s.profileName}>{userProfile.firstName} {userProfile.surname}</Subheading>
           {userProfile.bio ? <BodyText style={s.profileTagline}>{userProfile.bio}</BodyText> : null}
@@ -192,49 +234,59 @@ export default function ProfileScreen() {
           <TouchableOpacity style={activeTab === "Boards" ? s.tabButtonActive : s.tabButton} onPress={() => setActiveTab("Boards")}>
             <BodyText style={activeTab === "Boards" ? s.tabLabelActive : s.tabLabel}>Boards</BodyText>
           </TouchableOpacity>
-          <TouchableOpacity style={activeTab === "Journals" ? s.tabButtonActive : s.tabButton} onPress={() => setActiveTab("Journals")}>
-            <BodyText style={activeTab === "Journals" ? s.tabLabelActive : s.tabLabel}>Journals</BodyText>
-          </TouchableOpacity>
-          <TouchableOpacity style={activeTab === "Gratitude" ? s.tabButtonActive : s.tabButton} onPress={() => setActiveTab("Gratitude")}>
-            <BodyText style={activeTab === "Gratitude" ? s.tabLabelActive : s.tabLabel}>Gratitude</BodyText>
-          </TouchableOpacity>
         </View>
 
         {activeTab === "Pins" && (
           <View style={s.gridContainer}>
-            <View style={s.column}>
-              {leftImages.map((item) => {
-                const imageStyle = { width: "100%", borderRadius: 10, resizeMode: "cover", height: item.height }
-                return <TouchableOpacity key={item.id}><Image source={item.image} style={imageStyle} /></TouchableOpacity>
-              })}
-            </View>
-            <View style={s.column}>
-              {rightImages.map((item) => {
-                const imageStyle = { width: "100%", borderRadius: 10, resizeMode: "cover", height: item.height }
-                return <TouchableOpacity key={item.id}><Image source={item.image} style={imageStyle} /></TouchableOpacity>
-              })}
-            </View>
-          </View>
-        )}
-        {activeTab === "Boards" && <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>Boards content coming soon</BodyText></View>}
-        {activeTab === "Journals" && <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>Journals content coming soon</BodyText></View>}
-        {activeTab === "Gratitude" && (
-          <View style={s.gratitudeListContainer}>
-            {gratitude && gratitude.length > 0 ? (
-              gratitude.map((entry, index) => (
-                <View key={entry._id || index} style={s.gratitudeCard}>
-                  <Subheading style={s.gratitudeDate}>{new Date(entry.createdAt || entry.date).toLocaleDateString()}</Subheading>
-                  {entry.items.map((item, i) => (
-                    <View key={i} style={{ flexDirection: 'row', marginBottom: 5 }}>
-                      <BodyText style={{ color: '#D14D72', marginRight: 5 }}>•</BodyText>
-                      <BodyText style={s.gratitudeText}>{item}</BodyText>
-                    </View>
+            {userPins.length > 0 ? (
+              <View>
+                <View style={s.pinterestGrid}>
+                  {userPins.slice(0, 6).map((pin) => (
+                    <TouchableOpacity
+                      key={pin._id}
+                      style={s.squarePinCard}
+                      onPress={() => router.push({ pathname: '/pin-detail', params: { id: pin._id } })}
+                    >
+                      <Image source={{ uri: pin.images[0]?.url }} style={s.squarePinImage} />
+                    </TouchableOpacity>
                   ))}
                 </View>
-              ))
+                {userPins.length > 0 && (
+                  <TouchableOpacity style={s.seeMoreButton} onPress={() => router.push("/my-pins")}>
+                    <BodyText style={s.seeMoreText}>See More</BodyText>
+                  </TouchableOpacity>
+                )}
+              </View>
             ) : (
-              <View style={s.comingSoonContainer}><BodyText style={s.comingSoonText}>No gratitude entries yet.</BodyText></View>
+              <BodyText style={s.comingSoonText}>No pins yet. Create your first pin!</BodyText>
             )}
+          </View>
+        )}
+
+        {activeTab === "Boards" && (
+          <View style={s.boardGrid}>
+            {userBoards.map((board, index) => (
+              <TouchableOpacity
+                key={index}
+                style={s.boardPost}
+                onPress={() => router.push({ pathname: "/board-detail", params: { id: board._id } })}
+              >
+                {board.coverImage ? (
+                  <Image
+                    source={{ uri: board.coverImage }}
+                    style={s.boardImage}
+                    blurRadius={10}
+                  />
+                ) : (
+                  <View style={[s.boardImage, { backgroundColor: '#FFB6C1' }]} />
+                )}
+                <View style={s.boardOverlay}>
+                  <Subheading style={s.boardNameOverlay} numberOfLines={1} adjustsFontSizeToFit>{board.name}</Subheading>
+                  {board.isPrivate && <FontAwesome5 name="lock" size={12} color="#FFF" style={{ marginTop: 4 }} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+            {userBoards.length === 0 && <BodyText style={s.comingSoonText}>No boards created yet.</BodyText>}
           </View>
         )}
 
@@ -275,6 +327,40 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Logout Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showLogoutModal}
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalContent}>
+            <View style={s.modalIconContainer}>
+              <FontAwesome5 name="sign-out-alt" size={32} color="#FF6B6B" />
+            </View>
+            <Subheading style={s.modalTitle}>Log Out?</Subheading>
+            <BodyText style={s.modalMessage}>
+              Are you sure you want to log out?{'\n'}We'll miss you!
+            </BodyText>
+            <View style={s.modalButtons}>
+              <TouchableOpacity
+                style={s.cancelButton}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <BodyText style={s.cancelButtonText}>Cancel</BodyText>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.logoutButtonModal}
+                onPress={confirmLogout}
+              >
+                <BodyText style={s.logoutButtonTextModal}>Log Out</BodyText>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   )
 }
@@ -467,9 +553,72 @@ const s = StyleSheet.create({
     marginBottom: 24,
     gap: 8,
   },
+  grid: { // Grid layout
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: '100%',
+  },
   column: { // Grid column
     flex: 1,
     gap: 8,
+    marginHorizontal: 5,
+  },
+  pinCard: { // Pin card
+    marginBottom: 10,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pinImage: { // Pin image
+    width: '100%',
+    height: 200,
+    resizeMode: 'cover',
+  },
+  pinTitle: { // Pin title
+    padding: 8,
+    fontSize: 12,
+    color: '#333',
+  },
+  pinterestGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    // justifyContent: 'space-between',
+  },
+  squarePinCard: {
+    width: '31%', // 3 columns roughly
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#fff',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  squarePinImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    padding: 10,
+    gap: 8,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
   },
   comingSoonContainer: { // Coming soon container
     paddingHorizontal: 16,
@@ -601,5 +750,113 @@ const s = StyleSheet.create({
   gratitudeText: {
     fontSize: 14,
     color: '#333',
-  }
+  },
+  boardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  boardPost: {
+    width: '31%', // 3 columns approx
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  boardImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  boardOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 4
+  },
+  boardNameOverlay: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 30,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFE5E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    color: '#333',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: '#F0E0F0',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  logoutButtonModal: {
+    flex: 1,
+    paddingVertical: 12,
+    backgroundColor: '#FF6B6B',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  logoutButtonTextModal: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 })
