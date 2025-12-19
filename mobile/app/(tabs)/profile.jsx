@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { View, ScrollView, Image, StyleSheet, TouchableOpacity, Modal } from "react-native"
+import { View, ScrollView, Image, StyleSheet, TouchableOpacity, Modal, RefreshControl } from "react-native"
 import { FontAwesome5 } from "@expo/vector-icons"
 import { Subheading, BodyText } from '../components/CustomText';
 import { API_BASE_URL } from "../config";
@@ -29,6 +29,18 @@ export default function ProfileScreen() {
   const [mostCommonMood, setMostCommonMood] = useState(null);
   const [streakData, setStreakData] = useState({ streakCount: 0, completedToday: false });
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchMoodData(),
+      fetchStreakData(),
+      fetchEntries ? fetchEntries() : Promise.resolve(),
+      fetchUserContent()
+    ]);
+    setRefreshing(false);
+  };
 
   // Load static assets for moods
   const moodAssets = {
@@ -187,7 +199,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFF5F7" }}>
-      <ScrollView style={s.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={s.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D14D72" />}
+      >
         <Image source={require("../(tabs)/assets/images/flower.png")} style={s.backgroundImage} />
         <View style={s.profileHeader}>
           {userProfile.avatar ? (

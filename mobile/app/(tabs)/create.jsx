@@ -1,12 +1,15 @@
 import { View, StyleSheet, TextInput, TouchableOpacity, ImageBackground, ScrollView, KeyboardAvoidingView, Platform, Text, Image, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from '../components/CustomText';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import { useJournal } from '../context/JournalContext';
+import { useUser } from '../context/UserContext';
 import { API_BASE_URL } from '../config';
 import CustomAlert from '../components/CustomAlert';
+import { FONTS } from '../constants/fonts';
 
 const Create = ({ onClose }) => {
   const [date, setDate] = useState('');
@@ -24,6 +27,7 @@ const Create = ({ onClose }) => {
   const [isUploading, setIsUploading] = useState(false);
 
   const { addEntry } = useJournal();
+  const { token } = useUser();
 
   // Custom Alert State
   const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true });
@@ -184,8 +188,15 @@ const Create = ({ onClose }) => {
       // Upload image if exists
       if (imageUri) {
         const formData = new FormData();
+
+        // Normalize URI for React Native fetch
+        let fileUri = imageUri;
+        if (Platform.OS === 'android' && !fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
+          fileUri = 'file://' + fileUri;
+        }
+
         formData.append('image', {
-          uri: imageUri,
+          uri: fileUri,
           type: 'image/jpeg',
           name: 'photo.jpg',
         });
@@ -193,10 +204,13 @@ const Create = ({ onClose }) => {
         const uploadResponse = await fetch(`${API_BASE_URL}/entries/upload-image`, {
           method: 'POST',
           body: formData,
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
 
         if (!uploadResponse.ok) {
-          throw new Error("Failed to upload image");
+          throw new Error(`Failed to upload image (${uploadResponse.status})`);
         }
 
         const uploadData = await uploadResponse.json();
@@ -232,90 +246,93 @@ const Create = ({ onClose }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <View style={{ flex: 1, backgroundColor: '#FCC8D1' }}>
       <ImageBackground source={require('../(tabs)/assets/images/flower.png')} style={styles.backgroundImage} resizeMode="cover">
-        <View style={styles.overlay} />
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+          <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <View style={styles.overlay} />
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
-          <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-            <BodyText style={styles.cancelText}>Cancel</BodyText>
-          </TouchableOpacity>
-
-          <View style={styles.section}>
-            <Subheading style={styles.sectionTitle}>Date and Time</Subheading>
-            <View style={styles.dateTimeRow}>
-              <TextInput placeholder="MM/DD/YEAR" placeholderTextColor="#999" style={styles.dateInput} value={date} onChangeText={setDate} />
-              <TextInput placeholder="Time" placeholderTextColor="#999" style={styles.timeInput} value={time} onChangeText={setTime} />
-            </View>
-          </View>
-          <View style={styles.section}>
-            <Subheading style={styles.sectionTitle}>Your Thoughts</Subheading>
-            <TextInput placeholder="Write about your day, your feelings, or anything on your mind..." placeholderTextColor="#999" style={styles.thoughtsInput} multiline={true} numberOfLines={8} textAlignVertical="top" value={thoughts} onChangeText={setThoughts} />
-          </View>
-
-          {/* Media Buttons Row */}
-          <View style={styles.mediaButtonsRow}>
-            <TouchableOpacity
-              style={[styles.voiceButton, isRecording && styles.voiceButtonRecording]}
-              onPress={handleVoiceInput}
-            >
-              <Ionicons name={isRecording ? "stop-circle" : "mic"} size={20} color={isRecording ? "#FFF" : "#000"} />
-              <BodyText style={[styles.voiceButtonText, isRecording && styles.voiceButtonTextRecording]}>
-                {isRecording ? 'Stop' : audioUri ? 'Recorded ✓' : 'Voice'}
-              </BodyText>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
-              <Ionicons name="image" size={20} color="#000" />
-              <BodyText style={styles.mediaButtonText}>{imageUri ? 'Photo Added ✓' : 'Add Photo'}</BodyText>
-            </TouchableOpacity>
-          </View>
-
-          {/* Previews */}
-          {audioUri && !isRecording && (
-            <TouchableOpacity style={styles.previewButton} onPress={togglePreview}>
-              <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={20} color="#D14D72" />
-              <BodyText style={styles.previewButtonText}>
-                {isPlaying ? 'Pause Preview' : 'Preview Recording'}
-              </BodyText>
-            </TouchableOpacity>
-          )}
-
-          {imageUri && (
-            <View style={styles.imagePreviewContainer}>
-              <Image source={{ uri: imageUri }} style={styles.imagePreview} />
-              <TouchableOpacity style={styles.removeImageButton} onPress={() => setImageUri(null)}>
-                <Ionicons name="close-circle" size={24} color="#D14D72" />
+              <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+                <BodyText style={styles.cancelText}>Cancel</BodyText>
               </TouchableOpacity>
-            </View>
-          )}
+
+              <View style={styles.section}>
+                <Subheading style={styles.sectionTitle}>Date and Time</Subheading>
+                <View style={styles.dateTimeRow}>
+                  <TextInput placeholder="MM/DD/YEAR" placeholderTextColor="#999" style={styles.dateInput} value={date} onChangeText={setDate} />
+                  <TextInput placeholder="Time" placeholderTextColor="#999" style={styles.timeInput} value={time} onChangeText={setTime} />
+                </View>
+              </View>
+              <View style={styles.section}>
+                <Subheading style={styles.sectionTitle}>Your Thoughts</Subheading>
+                <TextInput placeholder="Write about your day, your feelings, or anything on your mind..." placeholderTextColor="#999" style={styles.thoughtsInput} multiline={true} numberOfLines={8} textAlignVertical="top" value={thoughts} onChangeText={setThoughts} />
+              </View>
+
+              {/* Media Buttons Row */}
+              <View style={styles.mediaButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.voiceButton, isRecording && styles.voiceButtonRecording]}
+                  onPress={handleVoiceInput}
+                >
+                  <Ionicons name={isRecording ? "stop-circle" : "mic"} size={20} color={isRecording ? "#FFF" : "#000"} />
+                  <BodyText style={[styles.voiceButtonText, isRecording && styles.voiceButtonTextRecording]}>
+                    {isRecording ? 'Stop' : audioUri ? 'Recorded ✓' : 'Voice'}
+                  </BodyText>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.mediaButton} onPress={pickImage}>
+                  <Ionicons name="image" size={20} color="#000" />
+                  <BodyText style={styles.mediaButtonText}>{imageUri ? 'Photo Added ✓' : 'Add Photo'}</BodyText>
+                </TouchableOpacity>
+              </View>
+
+              {/* Previews */}
+              {audioUri && !isRecording && (
+                <TouchableOpacity style={styles.previewButton} onPress={togglePreview}>
+                  <Ionicons name={isPlaying ? "pause-circle" : "play-circle"} size={20} color="#D14D72" />
+                  <BodyText style={styles.previewButtonText}>
+                    {isPlaying ? 'Pause Preview' : 'Preview Recording'}
+                  </BodyText>
+                </TouchableOpacity>
+              )}
+
+              {imageUri && (
+                <View style={styles.imagePreviewContainer}>
+                  <Image source={{ uri: imageUri }} style={styles.imagePreview} />
+                  <TouchableOpacity style={styles.removeImageButton} onPress={() => setImageUri(null)}>
+                    <Ionicons name="close-circle" size={24} color="#D14D72" />
+                  </TouchableOpacity>
+                </View>
+              )}
 
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isUploading}>
-            {isUploading ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Subheading style={styles.saveButtonText}>
-                Save Journal Entry
-              </Subheading>
-            )}
-          </TouchableOpacity>
-        </ScrollView>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isUploading}>
+                {isUploading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Subheading style={styles.saveButtonText}>
+                    Save Journal Entry
+                  </Subheading>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
 
-        <CustomAlert
-          visible={alertConfig.visible}
-          title={alertConfig.title}
-          message={alertConfig.message}
-          onClose={hideAlert}
-          onConfirm={() => {
-            hideAlert();
-            if (alertConfig.onConfirm) alertConfig.onConfirm();
-          }}
-          singleButton={alertConfig.singleButton}
-        />
-
+            <CustomAlert
+              visible={alertConfig.visible}
+              title={alertConfig.title}
+              message={alertConfig.message}
+              onClose={hideAlert}
+              onConfirm={() => {
+                hideAlert();
+                if (alertConfig.onConfirm) alertConfig.onConfirm();
+              }}
+              singleButton={alertConfig.singleButton}
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
       </ImageBackground>
-    </KeyboardAvoidingView>
+    </View>
   );
 };
 
@@ -324,6 +341,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FCC8D1',
   },
+  flex1: { flex: 1 },
   backgroundImage: { // Background image
     flex: 1,
     width: '100%',
@@ -350,8 +368,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
   },
-  // Tab Styles removed
-
   section: { // Section container
     marginBottom: 30,
   },
@@ -399,7 +415,6 @@ const styles = StyleSheet.create({
     color: '#000',
     minHeight: 150,
   },
-  // Gratitude Styles removed
   mediaButtonsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -507,7 +522,7 @@ const styles = StyleSheet.create({
   saveButtonText: { // Save button text
     fontSize: 16,
     color: '#FFFFFF',
-  },
+  }
 });
 
 export default Create;

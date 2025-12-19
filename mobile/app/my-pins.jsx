@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from './components/CustomText';
 import { API_BASE_URL } from './config';
 import { useUser } from './context/UserContext';
+import CustomAlert from './components/CustomAlert';
 
 const { width } = Dimensions.get('window');
 
@@ -18,6 +19,17 @@ export default function MyPinsScreen() {
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedPins, setSelectedPins] = useState([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true });
+
+    const showAlert = (title, message, onConfirm = null) => {
+        setAlertConfig({ visible: true, title, message, onConfirm, singleButton: true });
+    };
+
+    const hideAlert = () => {
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+    };
 
     const fetchPins = async () => {
         try {
@@ -84,12 +96,12 @@ export default function MyPinsScreen() {
                 setShowDeleteModal(false);
             } else {
                 setShowDeleteModal(false);
-                Alert.alert("Error", "Failed to delete pins");
+                showAlert("Error", "Failed to delete pins");
             }
         } catch (error) {
             console.error("Delete error:", error);
             setShowDeleteModal(false);
-            Alert.alert("Error", "An unexpected error occurred");
+            showAlert("Error", "An unexpected error occurred");
         }
     };
 
@@ -171,7 +183,6 @@ export default function MyPinsScreen() {
                     </View>
                 </View>
             </Modal>
-
             {isSelectMode && selectedPins.length > 0 && (
                 <View style={styles.footer}>
                     <TouchableOpacity style={styles.deleteButton} onPress={confirmDelete}>
@@ -180,6 +191,18 @@ export default function MyPinsScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={hideAlert}
+                onConfirm={() => {
+                    hideAlert();
+                    if (alertConfig.onConfirm) alertConfig.onConfirm();
+                }}
+                singleButton={alertConfig.singleButton}
+            />
         </SafeAreaView>
     );
 }

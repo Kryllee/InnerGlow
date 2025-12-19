@@ -1,4 +1,5 @@
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text, RefreshControl, ActivityIndicator } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, Text, RefreshControl, ActivityIndicator, Dimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useState, useEffect, useCallback } from "react";
 import { BlurView } from 'expo-blur';
 import { Subheading, BodyText } from '../components/CustomText';
@@ -19,7 +20,7 @@ const splitPins = (pins) => {
 
 const Home = () => {
     const { board } = useLocalSearchParams();
-    const [activeTab, setActiveTab] = useState("forYou");
+    const [activeTab, setActiveTab] = useState("forYou"); // Default to forYou now that it includes discovery
     const [showPopup, setShowPopup] = useState(false);
     const router = useRouter();
 
@@ -41,7 +42,9 @@ const Home = () => {
     // Fetch Boards
     const fetchBoards = async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/pins/boards`);
+            const res = await fetch(`${API_BASE_URL}/pins/user-boards`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
             if (res.ok) {
                 const data = await res.json();
                 setBoards(data);
@@ -55,8 +58,10 @@ const Home = () => {
     const fetchPins = async () => {
         try {
             let url = `${API_BASE_URL}/pins`;
-            if (activeTab !== 'forYou') {
-                url += `?board=${encodeURIComponent(activeTab)}`;
+            if (activeTab === 'forYou') {
+                url = `${API_BASE_URL}/pins/for-you`;
+            } else {
+                url += `?board=${encodeURIComponent(activeTab)}&userId=${userProfile?._id || ''}`;
             }
 
             const res = await fetch(url, {
@@ -67,13 +72,34 @@ const Home = () => {
             const data = await res.json();
 
             if (res.ok) {
-                const formatted = data.map(p => ({
-                    id: p._id,
-                    image: { uri: p.images[0]?.url },
-                    description: p.title,
-                    height: p.images[0]?.height || 200 + Math.random() * 100,
-                    user: p.userId
-                }));
+                const seenIds = new Set();
+                const screenWidth = Dimensions.get('window').width;
+                const formatted = data.filter(p => {
+                    const id = p._id || p.id;
+                    if (seenIds.has(id)) return false;
+                    seenIds.add(id);
+                    return true;
+                }).map(p => {
+                    const img = p.images[0] || {};
+                    const aspectRatio = img.height && img.width ? img.height / img.width : (1 + Math.random());
+                    return {
+                        id: p._id || p.id,
+                        image: { uri: img.url },
+                        description: p.title,
+                        height: Math.min(aspectRatio * (screenWidth / 2 - 20), 400),
+                        user: p.userId,
+                        isUnsplash: p.isUnsplash || p._id?.startsWith('unsplash-')
+                    };
+                });
+
+                // Shuffle for "For You" feed randomization
+                if (activeTab === 'forYou') {
+                    for (let i = formatted.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [formatted[i], formatted[j]] = [formatted[j], formatted[i]];
+                    }
+                }
+
                 setPins(formatted);
             }
         } catch (err) {
@@ -159,16 +185,16 @@ const Home = () => {
     );
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <View style={styles.tabBarWrapper}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabBar}>
                     <TouchableOpacity onPress={() => setActiveTab("forYou")}>
-                        <Subheading style={isForYouActive ? styles.activeTabText : styles.tabText}>For you</Subheading>
+                        <Subheading style={activeTab === "forYou" ? styles.activeTabText : styles.tabText}>For you</Subheading>
                     </TouchableOpacity>
 
                     {boards.map(board => (
-                        <TouchableOpacity key={board} onPress={() => setActiveTab(board)}>
-                            <Subheading style={activeTab === board ? styles.activeTabText : styles.tabText}>{board}</Subheading>
+                        <TouchableOpacity key={board._id} onPress={() => setActiveTab(board.name)}>
+                            <Subheading style={activeTab === board.name ? styles.activeTabText : styles.tabText}>{board.name}</Subheading>
                         </TouchableOpacity>
                     ))}
 
@@ -246,15 +272,14 @@ const Home = () => {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
     container: { // Main container
         flex: 1,
-        backgroundColor: "#fff",
-        paddingTop: 40,
+        backgroundColor: "#fef2f4",
     },
     tabBarWrapper: {
         height: 60,

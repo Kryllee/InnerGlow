@@ -1,4 +1,5 @@
-import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Alert, Switch } from "react-native";
+import { View, StyleSheet, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Switch, TouchableWithoutFeedback } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import React, { useState, useEffect, useCallback } from "react";
 import { Subheading, BodyText } from './components/CustomText';
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
@@ -6,6 +7,7 @@ import { useUser } from "./context/UserContext";
 import { API_BASE_URL } from "./config";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { BlurView } from 'expo-blur';
+import CustomAlert from "./components/CustomAlert";
 
 export default function BoardDetail() {
     const { id } = useLocalSearchParams();
@@ -21,6 +23,17 @@ export default function BoardDetail() {
     const [selectedPins, setSelectedPins] = useState([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true, confirmText: 'Confirm' });
+
+    const showAlert = (title, message, onConfirm = null, singleButton = true, confirmText = 'Confirm') => {
+        setAlertConfig({ visible: true, title, message, onConfirm, singleButton, confirmText });
+    };
+
+    const hideAlert = () => {
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+    };
+
     // Fetch Board Details
     const fetchDetails = async () => {
         try {
@@ -32,8 +45,7 @@ export default function BoardDetail() {
                 setBoard(data.board);
                 setPins(data.pins);
             } else {
-                Alert.alert("Error", "Could not load board.");
-                router.back();
+                showAlert("Error", "Could not load board.", () => router.back());
             }
         } catch (error) {
             console.error(error);
@@ -89,12 +101,12 @@ export default function BoardDetail() {
                 setShowDeleteModal(false);
             } else {
                 setShowDeleteModal(false);
-                Alert.alert("Error", "Failed to delete pins");
+                showAlert("Error", "Failed to delete pins");
             }
         } catch (error) {
             console.error("Delete error:", error);
             setShowDeleteModal(false);
-            Alert.alert("Error", "An unexpected error occurred");
+            showAlert("Error", "An unexpected error occurred");
         }
     };
 
@@ -126,9 +138,9 @@ export default function BoardDetail() {
 
             if (res.ok) {
                 setBoard(prev => ({ ...prev, isPrivate: newPrivacy }));
-                Alert.alert("Success", `Board is now ${newPrivacy ? 'Private' : 'Public'}`);
+                showAlert("Success", `Board is now ${newPrivacy ? 'Private' : 'Public'}`);
             } else {
-                Alert.alert("Error", "Failed to update privacy.");
+                showAlert("Error", "Failed to update privacy.");
             }
         } catch (error) {
             console.error(error);
@@ -141,31 +153,26 @@ export default function BoardDetail() {
     // Handle Board Delete
     const handleDelete = () => {
         setMenuVisible(false);
-        Alert.alert(
+        showAlert(
             "Delete Board",
             "Are you sure? This will delete the board and all pins inside it.",
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Delete",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            const res = await fetch(`${API_BASE_URL}/pins/boards/${id}`, {
-                                method: 'DELETE',
-                                headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            if (res.ok) {
-                                router.replace("/(tabs)/profile");
-                            } else {
-                                Alert.alert("Error", "Failed to delete board.");
-                            }
-                        } catch (error) {
-                            Alert.alert("Error", error.message);
-                        }
+            async () => {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/pins/boards/${id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        router.replace("/(tabs)/profile");
+                    } else {
+                        showAlert("Error", "Failed to delete board.");
                     }
+                } catch (error) {
+                    showAlert("Error", error.message);
                 }
-            ]
+            },
+            false,
+            "Delete"
         );
     };
 
@@ -174,7 +181,7 @@ export default function BoardDetail() {
     }
 
     return (
-        <View style={s.container}>
+        <SafeAreaView style={s.container}>
             {/* Header */}
             <View style={s.header}>
                 <TouchableOpacity onPress={() => router.back()} style={s.backButton}>
@@ -249,32 +256,37 @@ export default function BoardDetail() {
                 )}
             </ScrollView>
 
-            {/* Menu Modal */}
             <Modal transparent visible={menuVisible} animationType="fade" onRequestClose={() => setMenuVisible(false)}>
                 <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setMenuVisible(false)}>
-                    <View style={s.menuContainer}>
-                        <TouchableOpacity style={s.menuItem} onPress={toggleSelectMode}>
-                            <FontAwesome5 name="check-square" size={18} color="#333" style={{ width: 24 }} />
-                            <BodyText style={s.menuText}>{isSelectMode ? "Cancel Selection" : "Select Pins"}</BodyText>
-                        </TouchableOpacity>
+                    <TouchableWithoutFeedback>
+                        <View style={s.menuContainer}>
+                            <TouchableOpacity style={s.menuItem} onPress={toggleSelectMode}>
+                                <View style={s.menuItemLeft}>
+                                    <FontAwesome5 name="check-square" size={18} color="#333" style={s.menuIcon} />
+                                    <BodyText style={s.menuText}>{isSelectMode ? "Cancel Selection" : "Select Pins"}</BodyText>
+                                </View>
+                            </TouchableOpacity>
 
-                        <View style={s.menuSeparator} />
+                            <View style={s.menuSeparator} />
 
-                        <TouchableOpacity style={s.menuItem} onPress={togglePrivacy}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <FontAwesome5 name={board.isPrivate ? "globe" : "lock"} size={18} color="#333" style={{ width: 24 }} />
-                                <BodyText style={s.menuText}>Make {board.isPrivate ? "Public" : "Private"}</BodyText>
-                            </View>
-                            {processing && <ActivityIndicator size="small" />}
-                        </TouchableOpacity>
+                            <TouchableOpacity style={s.menuItem} onPress={togglePrivacy}>
+                                <View style={s.menuItemLeft}>
+                                    <FontAwesome5 name={board.isPrivate ? "globe" : "lock"} size={18} color="#333" style={s.menuIcon} />
+                                    <BodyText style={s.menuText}>Make {board.isPrivate ? "Public" : "Private"}</BodyText>
+                                </View>
+                                {processing && <ActivityIndicator size="small" color="#D14D72" />}
+                            </TouchableOpacity>
 
-                        <View style={s.menuSeparator} />
+                            <View style={s.menuSeparator} />
 
-                        <TouchableOpacity style={s.menuItem} onPress={handleDelete}>
-                            <FontAwesome5 name="trash-alt" size={18} color="#FF6B6B" style={{ width: 24 }} />
-                            <BodyText style={s.menuTextRed}>Delete Board</BodyText>
-                        </TouchableOpacity>
-                    </View>
+                            <TouchableOpacity style={s.menuItem} onPress={handleDelete}>
+                                <View style={s.menuItemLeft}>
+                                    <FontAwesome5 name="trash-alt" size={18} color="#FF6B6B" style={s.menuIcon} />
+                                    <BodyText style={s.menuTextRed}>Delete Board</BodyText>
+                                </View>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableWithoutFeedback>
                 </TouchableOpacity>
             </Modal>
 
@@ -322,7 +334,20 @@ export default function BoardDetail() {
                     </TouchableOpacity>
                 </View>
             )}
-        </View>
+
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                onClose={hideAlert}
+                onConfirm={() => {
+                    hideAlert();
+                    if (alertConfig.onConfirm) alertConfig.onConfirm();
+                }}
+                singleButton={alertConfig.singleButton}
+                confirmText={alertConfig.confirmText}
+            />
+        </SafeAreaView>
     );
 }
 
@@ -336,7 +361,7 @@ const s = StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
-        paddingTop: 50,
+        paddingTop: 10, // Adjusted for SafeAreaView
         paddingBottom: 16,
         backgroundColor: "#FFF",
         borderBottomWidth: 1,
@@ -410,23 +435,30 @@ const s = StyleSheet.create({
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        justifyContent: 'space-between'
+        paddingVertical: 15,
+        justifyContent: 'space-between',
+        width: '100%'
+    },
+    menuItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    menuIcon: {
+        width: 30,
+        textAlign: 'center',
+        marginRight: 10
     },
     menuSeparator: {
         height: 1,
         backgroundColor: '#F0E0F0',
-        marginVertical: 4
     },
     menuText: {
         fontSize: 16,
         color: '#333',
-        marginLeft: 12
     },
     menuTextRed: {
         fontSize: 16,
         color: '#FF6B6B',
-        marginLeft: 12
     },
     selectedPinCard: {
         opacity: 0.7,

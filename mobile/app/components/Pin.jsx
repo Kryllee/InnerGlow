@@ -4,6 +4,8 @@ import { FontAwesome5, Ionicons } from "@expo/vector-icons"
 import * as ImagePicker from "expo-image-picker"
 import { API_BASE_URL } from "../config"
 import { useUser } from "../context/UserContext"
+import { SafeAreaView } from "react-native-safe-area-context"
+import CustomAlert from "./CustomAlert"
 
 const { width } = Dimensions.get("window")
 
@@ -25,24 +27,38 @@ export default function PinCreator({ media = [], onClose }) {
   const [isPrivateBoard, setIsPrivateBoard] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true });
+
+  const showAlert = (title, message, onConfirm = null) => {
+    setAlertConfig({ visible: true, title, message, onConfirm, singleButton: true });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
+
   // Fetch Boards on Mount
   useEffect(() => {
     const fetchBoards = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/pins/boards`);
+        const res = await fetch(`${API_BASE_URL}/pins/user-boards`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (res.ok) {
           const data = await res.json();
+          // Backend returns objects [{_id, name, ...}], we need the names or objects
           setBoards(data);
           if (data.length > 0 && !selectedBoard) {
-            setSelectedBoard(data[0]);
+            setSelectedBoard(data[0].name);
           }
         }
       } catch (err) {
         console.error("Error fetching boards:", err);
       }
     };
-    fetchBoards();
-  }, []);
+    if (token) fetchBoards();
+  }, [token]);
 
   const canPost = images.length > 0 && selectedBoard
 
@@ -58,23 +74,34 @@ export default function PinCreator({ media = [], onClose }) {
 
         // 1. Upload Image
         const formData = new FormData();
+
+        // Normalize URI for React Native fetch
+        let fileUri = img.uri;
+        if (Platform.OS === 'android' && !fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
+          fileUri = 'file://' + fileUri;
+        }
+
         formData.append('image', {
-          uri: img.uri,
-          type: 'image/jpeg', // Assuming jpeg for simplicity
+          uri: fileUri,
+          type: 'image/jpeg',
           name: 'pin_image.jpg',
         });
+
+        console.log(`Uploading pin image to: ${API_BASE_URL}/pins/upload-image`);
 
         const uploadResponse = await fetch(`${API_BASE_URL}/pins/upload-image`, {
           method: 'POST',
           body: formData,
           headers: {
-            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
           },
         });
 
         if (!uploadResponse.ok) {
-          const err = await uploadResponse.text();
-          throw new Error("Failed to upload image: " + err);
+          const status = uploadResponse.status;
+          const text = await uploadResponse.text();
+          console.error(`Upload failed (${status}):`, text);
+          throw new Error(`Upload failed (${status})`);
         }
 
         const uploadData = await uploadResponse.json();
@@ -109,7 +136,7 @@ export default function PinCreator({ media = [], onClose }) {
 
     } catch (error) {
       console.error("Error creating pin:", error);
-      alert("Failed to create pin(s). Please try again.");
+      showAlert("Error", "Failed to create pin(s). Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -158,159 +185,172 @@ export default function PinCreator({ media = [], onClose }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={s.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      {/* --- HEADER --- */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.closeButton} onPress={onClose}>
-          <FontAwesome5 name="times" size={20} color="#666" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Create Pin</Text>
-        <TouchableOpacity
-          style={[s.saveButton, { backgroundColor: canPost ? "#D14D72" : "#E8D5E8" }]}
-          onPress={handlePost}
-          disabled={!canPost || isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={s.saveButtonText}>Save</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
-
-        {/* --- MEDIA SECTION --- */}
-        <Text style={s.sectionTitle}>Gallery</Text>
-        <View style={s.mediaContainer}>
-          {images.length === 0 ? (
-            <TouchableOpacity style={s.emptyStateBox} onPress={handleAddMedia}>
-              <View style={s.uploadCircle}>
-                <FontAwesome5 name="image" size={24} color="#D14D72" />
-              </View>
-              <Text style={s.uploadText}>Pick photos</Text>
-            </TouchableOpacity>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.carouselContent}>
-              {images.map((img, index) => (
-                <View key={index} style={s.imageCard}>
-                  <Image source={{ uri: img.uri }} style={s.cardImage} />
-                  <TouchableOpacity style={s.deleteButton} onPress={() => handleRemoveMedia(index)}>
-                    <FontAwesome5 name="times" size={12} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={s.addMoreCard} onPress={handleAddMedia}>
-                <FontAwesome5 name="plus" size={24} color="#D14D72" />
-                <Text style={s.addMoreText}>Add</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          )}
-        </View>
-
-        {/* --- DETAILS SECTION --- */}
-        <Text style={s.sectionTitle}>Details</Text>
-        <View style={s.inputContainer}>
-          <Text style={s.inputLabel}>Title</Text>
-          <TextInput
-            style={s.textInput}
-            placeholder="Give your pin a title"
-            placeholderTextColor="#999"
-            value={title}
-            onChangeText={setTitle}
-          />
-
-          <Text style={s.inputLabel}>Description</Text>
-          <TextInput
-            style={[s.textInput, s.textArea]}
-            placeholder="What is this pin about?"
-            placeholderTextColor="#999"
-            multiline
-            value={description}
-            onChangeText={setDescription}
-            textAlignVertical="top"
-          />
-        </View>
-
-        {/* --- BOARD SECTION --- */}
-        <View style={s.boardHeaderRow}>
-          <Text style={s.sectionTitle}>Select Board</Text>
-          <TouchableOpacity onPress={() => setShowNewBoardModal(true)}>
-            <Text style={s.createBoardText}>+ Create New</Text>
+    <SafeAreaView style={s.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        {/* --- HEADER --- */}
+        <View style={s.header}>
+          <TouchableOpacity style={s.closeButton} onPress={onClose}>
+            <FontAwesome5 name="times" size={20} color="#666" />
+          </TouchableOpacity>
+          <Text style={s.headerTitle}>Create Pin</Text>
+          <TouchableOpacity
+            style={[s.saveButton, { backgroundColor: canPost ? "#D14D72" : "#E8D5E8" }]}
+            onPress={handlePost}
+            disabled={!canPost || isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={s.saveButtonText}>Save</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        <View style={s.tabsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.boardScroll}>
-            {boards.map((item) => (
-              <TouchableOpacity
-                key={item}
-                style={selectedBoard === item ? s.tabButtonActive : s.tabButton}
-                onPress={() => setSelectedBoard(item)}
-              >
-                <Text style={selectedBoard === item ? s.tabLabelActive : s.tabLabel}>{item}</Text>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+
+          {/* --- MEDIA SECTION --- */}
+          <Text style={s.sectionTitle}>Gallery</Text>
+          <View style={s.mediaContainer}>
+            {images.length === 0 ? (
+              <TouchableOpacity style={s.emptyStateBox} onPress={handleAddMedia}>
+                <View style={s.uploadCircle}>
+                  <FontAwesome5 name="image" size={24} color="#D14D72" />
+                </View>
+                <Text style={s.uploadText}>Pick photos</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.carouselContent}>
+                {images.map((img, index) => (
+                  <View key={index} style={s.imageCard}>
+                    <Image source={{ uri: img.uri }} style={s.cardImage} />
+                    <TouchableOpacity style={s.deleteButton} onPress={() => handleRemoveMedia(index)}>
+                      <FontAwesome5 name="times" size={12} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <TouchableOpacity style={s.addMoreCard} onPress={handleAddMedia}>
+                  <FontAwesome5 name="plus" size={24} color="#D14D72" />
+                  <Text style={s.addMoreText}>Add</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
 
-        {/* Spacer for bottom scrolling */}
-        <View style={{ height: 50 }} />
-      </ScrollView>
-
-
-      {/* --- MODAL --- */}
-      <Modal
-        transparent
-        visible={showNewBoardModal}
-        animationType="fade"
-        onRequestClose={() => setShowNewBoardModal(false)}
-      >
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.modalOverlay}>
-          <View style={s.modalContent}>
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>New Board</Text>
-              <TouchableOpacity onPress={() => setShowNewBoardModal(false)}>
-                <FontAwesome5 name="times" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-
+          {/* --- DETAILS SECTION --- */}
+          <Text style={s.sectionTitle}>Details</Text>
+          <View style={s.inputContainer}>
+            <Text style={s.inputLabel}>Title</Text>
             <TextInput
-              style={s.modalInput}
-              placeholder='e.g., "Outfits"'
-              value={newBoardName}
-              onChangeText={setNewBoardName}
-              autoFocus
+              style={s.textInput}
+              placeholder="Give your pin a title"
+              placeholderTextColor="#999"
+              value={title}
+              onChangeText={setTitle}
             />
 
-            <View style={s.privacyRow}>
-              <View>
-                <Text style={s.privacyTitle}>Private Board</Text>
-                <Text style={s.privacySubtitle}>Only you can see this board</Text>
-              </View>
-              <Switch
-                value={isPrivateBoard}
-                onValueChange={setIsPrivateBoard}
-                trackColor={{ false: "#e0e0e0", true: "#FFB6C1" }}
-                thumbColor={isPrivateBoard ? "#D14D72" : "#f4f3f4"}
-              />
-            </View>
+            <Text style={s.inputLabel}>Description</Text>
+            <TextInput
+              style={[s.textInput, s.textArea]}
+              placeholder="What is this pin about?"
+              placeholderTextColor="#999"
+              multiline
+              value={description}
+              onChangeText={setDescription}
+              textAlignVertical="top"
+            />
+          </View>
 
-            <TouchableOpacity
-              style={[s.modalButton, { backgroundColor: newBoardName.trim() ? "#D14D72" : "#E8D5E8" }]}
-              onPress={handleAddBoard}
-              disabled={!newBoardName.trim()}
-            >
-              <Text style={s.modalButtonText}>Create Board</Text>
+          {/* --- BOARD SECTION --- */}
+          <View style={s.boardHeaderRow}>
+            <Text style={s.sectionTitle}>Select Board</Text>
+            <TouchableOpacity onPress={() => setShowNewBoardModal(true)}>
+              <Text style={s.createBoardText}>+ Create New</Text>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
 
-    </KeyboardAvoidingView>
+          <View style={s.tabsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.boardScroll}>
+              {boards.map((item) => (
+                <TouchableOpacity
+                  key={item._id}
+                  style={selectedBoard === item.name ? s.tabButtonActive : s.tabButton}
+                  onPress={() => setSelectedBoard(item.name)}
+                >
+                  <Text style={selectedBoard === item.name ? s.tabLabelActive : s.tabLabel}>{item.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Spacer for bottom scrolling */}
+          <View style={{ height: 50 }} />
+        </ScrollView>
+
+
+        {/* --- MODAL --- */}
+        <Modal
+          transparent
+          visible={showNewBoardModal}
+          animationType="fade"
+          onRequestClose={() => setShowNewBoardModal(false)}
+        >
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={s.modalOverlay}>
+            <View style={s.modalContent}>
+              <View style={s.modalHeader}>
+                <Text style={s.modalTitle}>New Board</Text>
+                <TouchableOpacity onPress={() => setShowNewBoardModal(false)}>
+                  <FontAwesome5 name="times" size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <TextInput
+                style={s.modalInput}
+                placeholder='e.g., "Outfits"'
+                value={newBoardName}
+                onChangeText={setNewBoardName}
+                autoFocus
+              />
+
+              <View style={s.privacyRow}>
+                <View>
+                  <Text style={s.privacyTitle}>Private Board</Text>
+                  <Text style={s.privacySubtitle}>Only you can see this board</Text>
+                </View>
+                <Switch
+                  value={isPrivateBoard}
+                  onValueChange={setIsPrivateBoard}
+                  trackColor={{ false: "#e0e0e0", true: "#FFB6C1" }}
+                  thumbColor={isPrivateBoard ? "#D14D72" : "#f4f3f4"}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[s.modalButton, { backgroundColor: newBoardName.trim() ? "#D14D72" : "#E8D5E8" }]}
+                onPress={handleAddBoard}
+                disabled={!newBoardName.trim()}
+              >
+                <Text style={s.modalButtonText}>Create Board</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </KeyboardAvoidingView>
+
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={hideAlert}
+        onConfirm={() => {
+          hideAlert();
+          if (alertConfig.onConfirm) alertConfig.onConfirm();
+        }}
+        singleButton={alertConfig.singleButton}
+      />
+    </SafeAreaView>
   )
 }
 
@@ -324,7 +364,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'android' ? 40 : 15,
+    paddingTop: 10, // Adjusted for SafeAreaView
     paddingBottom: 15,
     borderBottomWidth: 1,
     borderBottomColor: "#F0E0F0",

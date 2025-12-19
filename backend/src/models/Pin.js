@@ -57,7 +57,34 @@ const pinSchema = new mongoose.Schema({
         // Optional: You can save width/height here if you want a masonry layout later
         width: Number,
         height: Number
-    }]
+    }],
+
+    // 5. COMMENTS
+    // Persistent comments for the pin
+    comments: [{
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        text: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+
+    // 6. EXTERNAL REFERENCE
+    // If this pin came from Unsplash
+    unsplashId: {
+        type: String,
+        index: true,
+        default: null
+    }
 
 }, {
     timestamps: true // Automatically saves 'createdAt' (for "Newest" sort)

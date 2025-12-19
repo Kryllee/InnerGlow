@@ -81,9 +81,15 @@ export const JournalProvider = ({ children }) => {
 
     // Update entry helper
     const updateEntry = async (id, data, type) => {
-        if (!token) return;
+        if (!token || !id) {
+            console.error("Cannot update entry: Missing token or id", { token: !!token, id });
+            return;
+        }
         try {
-            const response = await fetch(`${API_BASE_URL}/entries/${id}`, {
+            const url = `${API_BASE_URL}/entries/${id}`;
+            console.log(`Updating ${type} entry at ${url}`, data);
+
+            const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -91,15 +97,24 @@ export const JournalProvider = ({ children }) => {
                 },
                 body: JSON.stringify(data)
             });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Failed to update entry. Status: ${response.status}`, errorText);
+                return;
+            }
+
             const updatedEntry = await response.json();
+            console.log("Entry updated successfully:", updatedEntry._id);
 
             if (type === 'journal') {
-                setEntries(entries.map(e => e._id === id ? updatedEntry : e));
+                setEntries(prev => prev.map(e => e._id === id ? updatedEntry : e));
             } else {
-                setGratitude(gratitude.map(e => e._id === id ? updatedEntry : e));
+                setGratitude(prev => prev.map(e => e._id === id ? updatedEntry : e));
             }
         } catch (error) {
-            console.error("Failed to update entry:", error);
+            console.error("Failed to update entry (Network or JSON error):", error);
+            throw error;
         }
     };
 
@@ -158,7 +173,7 @@ export const JournalProvider = ({ children }) => {
             return true;
         } catch (error) {
             console.error("Failed to delete entry:", error);
-            return false;
+            throw error;
         }
     };
 

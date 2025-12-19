@@ -8,8 +8,9 @@ import { Subheading, BodyText } from './components/CustomText';
 import { ActivityIndicator } from 'react-native';
 import { API_BASE_URL } from './config';
 import { useUser } from './context/UserContext';
+import CustomAlert from './components/CustomAlert';
 import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width } = Dimensions.get('window');
 
@@ -53,39 +54,80 @@ export default function PinDetail() {
     const [newBoardName, setNewBoardName] = useState('');
     const [creatingBoard, setCreatingBoard] = useState(false);
 
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true });
+
+    const showAlert = (title, message, onConfirm = null) => {
+        setAlertConfig({ visible: true, title, message, onConfirm, singleButton: true });
+    };
+
+    const hideAlert = () => {
+        setAlertConfig(prev => ({ ...prev, visible: false }));
+    };
+
     // Fetch Pin Details
     useEffect(() => {
         const fetchPinDetails = async () => {
             try {
-                // First check if it's a real backend ID (length 24 hex) or mock ID
-                // If it's a mock ID (e.g. integer-like), fallback to mock data?
-                // Or just try fetching from backend.
-
                 const response = await fetch(`${API_BASE_URL}/pins/${params.id}`);
+                const data = await response.json();
+
                 if (response.ok) {
-                    const data = await response.json();
+                    // Decide which user to show as author
+                    let authorName = "Unknown";
+                    let authorAvatar = "https://api.dicebear.com/9.x/pixel-art/png?seed=user";
+
+                    if (data.isUnsplash) {
+                        authorName = data.userId?.fullName || data.userId?.username || "Unsplash User";
+                        authorAvatar = data.userId?.profileImage || authorAvatar;
+                    } else if (data.isSaved && data.originalAuthor) {
+                        authorName = data.originalAuthor.username || "Unknown";
+                        authorAvatar = data.originalAuthor.profileImage || authorAvatar;
+                    } else {
+                        authorName = data.userId?.username || "Unknown";
+                        authorAvatar = data.userId?.profileImage || authorAvatar;
+                    }
 
                     // Transform backend data to UI format
                     setPin({
+                        ...data,
                         id: data._id,
                         image: { uri: data.images[0]?.url },
                         user: {
-                            name: (data.isSaved && data.originalAuthor) ? (data.originalAuthor.username || "Unknown") : (data.userId?.username || "Unknown"),
-                            avatar: (data.isSaved && data.originalAuthor)
-                                ? (data.originalAuthor.profileImage ? { uri: data.originalAuthor.profileImage } : { uri: "https://api.dicebear.com/9.x/pixel-art/png?seed=user" })
-                                : (data.userId?.profileImage ? { uri: data.userId.profileImage } : { uri: "https://api.dicebear.com/9.x/pixel-art/png?seed=user" })
+                            name: authorName,
+                            avatar: { uri: authorAvatar }
                         },
-                        description: data.title + (data.description ? `\n\n${data.description}` : ""),
-                        comments: [] // Backend doesn't have comments yet
+                        description: (data.title === data.description || !data.description)
+                            ? (data.title || "Inspiration")
+                            : `${data.title}\n\n${data.description}`,
                     });
+
+                    // Format comments for UI
+                    const formattedComments = (data.comments || []).map(c => {
+                        let pfp = c.userId?.profileImage || `https://api.dicebear.com/9.x/pixel-art/png?seed=${c.userId?.username || 'user'}`;
+                        if (pfp.includes("api.dicebear.com") && pfp.includes("/svg")) {
+                            pfp = pfp.replace("/svg", "/png");
+                        }
+                        return {
+                            id: c._id,
+                            text: c.text,
+                            user: {
+                                name: c.userId?.username || 'Unknown',
+                                avatar: { uri: pfp }
+                            },
+                            timestamp: new Date(c.createdAt)
+                        };
+                    }).reverse(); // Newest first
+
+                    setComments(formattedComments);
+
                 } else {
-                    // Fallback to mock data if backend fails (e.g. using mock pin ID)
+                    // Fallback to mock data
                     const mockPin = MOCK_PINS.find(p => p.id.toString() === params.id);
                     if (mockPin) setPin(mockPin);
                 }
             } catch (error) {
                 console.error("Error fetching pin:", error);
-                // Fallback
                 const mockPin = MOCK_PINS.find(p => p.id.toString() === params.id);
                 if (mockPin) setPin(mockPin);
             } finally {
@@ -96,7 +138,7 @@ export default function PinDetail() {
         if (params.id) {
             fetchPinDetails();
         }
-    }, [params.id]);
+    }, [params.id, token]);
 
 
     const copyToLink = async () => {
@@ -111,7 +153,7 @@ export default function PinDetail() {
         try {
             const { status } = await MediaLibrary.requestPermissionsAsync();
             if (status !== 'granted') {
-                alert('Permission to access media library is required to download images.');
+                showAlert('Permission Required', 'Permission to access media library is required to download images.');
                 return;
             }
 
@@ -119,32 +161,67 @@ export default function PinDetail() {
             const { uri } = await FileSystem.downloadAsync(pin.image.uri, fileUri);
             await MediaLibrary.createAssetAsync(uri);
 
-            // Show custom toast or alert for success
+            setToastMessage("Image saved to gallery!");
             setShowToast(true);
-            // Reuse toast for simplicity, though message is currently "Link copied..."
-            // I should update CustomToast to accept dynamic message or override it here. 
-            // For now I'll just alert or assume I'll mod toast logic next.
-            alert("Image saved to gallery!");
+            setTimeout(() => setShowToast(false), 2000);
 
         } catch (error) {
             console.error("Download error:", error);
-            alert("Failed to download image.");
+            showAlert("Error", "Failed to download image.");
         }
     };
 
-    const handleSendComment = () => {
+    const handleSendComment = async () => {
         if (!newComment.trim()) return;
 
-        const commentObj = {
-            id: Date.now(),
-            text: newComment.trim(),
-            user: { name: userProfile?.username || 'You', avatar: { uri: userProfile?.profileImage || `https://api.dicebear.com/9.x/pixel-art/png?seed=xdrea` } },
-            timestamp: new Date(),
-        };
+        try {
+            const res = await fetch(`${API_BASE_URL}/pins/${params.id}/comment`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    text: newComment.trim(),
+                    unsplashData: pin.isUnsplash ? {
+                        title: pin.title,
+                        description: pin.description,
+                        images: pin.images,
+                        board: pin.board
+                    } : null
+                })
+            });
 
-        // Update local state only for now as backend comments aren't implemented
-        setComments([commentObj, ...comments]);
-        setNewComment('');
+            if (res.ok) {
+                const updatedComments = await res.json();
+
+                // Format for UI
+                const formatted = updatedComments.map(c => {
+                    let pfp = c.userId?.profileImage || `https://api.dicebear.com/9.x/pixel-art/png?seed=${c.userId?.username || 'user'}`;
+                    if (pfp.includes("api.dicebear.com") && pfp.includes("/svg")) {
+                        pfp = pfp.replace("/svg", "/png");
+                    }
+                    return {
+                        id: c._id,
+                        text: c.text,
+                        user: {
+                            name: c.userId?.username || 'Unknown',
+                            avatar: { uri: pfp }
+                        },
+                        timestamp: new Date(c.createdAt)
+                    };
+                }).reverse();
+
+                setComments(formatted);
+                setNewComment('');
+            } else {
+                const err = await res.json();
+                showAlert("Error", err.message || "Failed to post comment");
+            }
+        } catch (error) {
+            console.error("Comment error:", error);
+            showAlert("Error", "Could not connect to server");
+        }
     };
 
     const fetchUserBoards = async () => {
@@ -163,7 +240,7 @@ export default function PinDetail() {
 
     const openSaveModal = () => {
         if (!token) {
-            alert("Please login to save pins.");
+            showAlert("Login Required", "Please login to save pins.");
             return;
         }
         fetchUserBoards();
@@ -194,11 +271,11 @@ export default function PinDetail() {
                 setTimeout(() => setShowToast(false), 2000);
             } else {
                 const err = await res.json();
-                Alert.alert("Error", err.message || "Failed to save pin");
+                showAlert("Error", err.message || "Failed to save pin");
             }
         } catch (error) {
             console.error("Save error:", error);
-            Alert.alert("Error", "An unexpected error occurred");
+            showAlert("Error", "An unexpected error occurred");
         }
     };
 
@@ -230,7 +307,7 @@ export default function PinDetail() {
     }
 
     return (
-        <SafeAreaView style={styles.mainContainerWrapper}>
+        <SafeAreaView style={styles.mainContainerWrapper} edges={['top']}>
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -298,7 +375,10 @@ export default function PinDetail() {
 
                                 {/* Input */}
                                 <View style={styles.commentInputRow}>
-                                    <Image source={{ uri: `https://api.dicebear.com/9.x/pixel-art/png?seed=xdrea` }} style={styles.currentUserAvatar} />
+                                    <Image
+                                        source={{ uri: userProfile?.avatar?.uri || `https://api.dicebear.com/9.x/pixel-art/png?seed=${userProfile?.username || 'user'}` }}
+                                        style={styles.currentUserAvatar}
+                                    />
                                     <View style={styles.inputWrapper}>
                                         <TextInput
                                             placeholder="Add a comment"
@@ -340,6 +420,18 @@ export default function PinDetail() {
                     </ScrollView>
 
                     <CustomToast visible={showToast} message={toastMessage || "Link copied to clipboard!"} />
+
+                    <CustomAlert
+                        visible={alertConfig.visible}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={hideAlert}
+                        onConfirm={() => {
+                            hideAlert();
+                            if (alertConfig.onConfirm) alertConfig.onConfirm();
+                        }}
+                        singleButton={alertConfig.singleButton}
+                    />
 
                     {/* Save Modal */}
                     <Modal

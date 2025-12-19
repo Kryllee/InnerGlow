@@ -11,12 +11,24 @@ import Gratitude from '../components/Gratitude';
 import * as ImagePicker from "expo-image-picker";
 
 import Pin from '../components/Pin';
+import CustomAlert from '../components/CustomAlert';
 
 export default function TabLayout() {
   const [showModal, setShowModal] = useState(false);
   const [selectedType, setSelectedType] = useState(null);
 
   const [selectedMedia, setSelectedMedia] = useState(null);
+
+  // Custom Alert State
+  const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '', onConfirm: null, singleButton: true });
+
+  const showAlert = (title, message, onConfirm = null) => {
+    setAlertConfig({ visible: true, title, message, onConfirm, singleButton: true });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig(prev => ({ ...prev, visible: false }));
+  };
 
   const handlePinClick = async () => {
     try {
@@ -26,10 +38,9 @@ export default function TabLayout() {
       const mediaPermission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (
-        cameraPermission.status !== "granted" ||
         mediaPermission.status !== "granted"
       ) {
-        alert("Permission is required to access camera and photos.");
+        showAlert("Permission Required", "Permission is required to access camera and photos.");
         return;
       }
 
@@ -168,7 +179,7 @@ export default function TabLayout() {
             </Subheading>
 
             <View style={styles.boxesContainer}>
-              
+
               {/* PIN BUTTON */}
               <TouchableOpacity style={styles.modalBox} onPress={handlePinClick}>
                 <View style={styles.boxContent}>
@@ -226,6 +237,17 @@ export default function TabLayout() {
         <Pin media={selectedMedia || []} onClose={() => setSelectedMedia(null)} />
       </Modal>
 
+      <CustomAlert
+        visible={alertConfig.visible}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        onClose={hideAlert}
+        onConfirm={() => {
+          hideAlert();
+          if (alertConfig.onConfirm) alertConfig.onConfirm();
+        }}
+        singleButton={alertConfig.singleButton}
+      />
     </>
   );
 }

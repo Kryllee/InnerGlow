@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Subheading, BodyText } from './components/CustomText';
 import { FONTS } from './constants/fonts';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from './config';
 import { useUser } from './context/UserContext';
+import CustomAlert from './components/CustomAlert';
 
 const PRIMARY_COLOR = '#FCC8D1';
 const SECONDARY_COLOR = '#D14D72';
@@ -18,6 +20,11 @@ export default function SignUp() {
     const [showPassword, setShowPassword] = useState(false);
     const [errors, setErrors] = useState({ n: false, u: false, e: false, p: false });
     const [loading, setLoading] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '' });
+
+    const showAlert = (title, message) => {
+        setAlertConfig({ visible: true, title, message });
+    };
 
     const router = useRouter();
     const { updateProfile, login } = useUser();
@@ -40,7 +47,7 @@ export default function SignUp() {
             p: !password.trim()
         };
         setErrors(e);
-        if (e.n || e.u || e.e || e.p) return Alert.alert('Required', 'Please fill all fields');
+        if (e.n || e.u || e.e || e.p) return showAlert('Required', 'Please fill all fields');
 
         setLoading(true);
         try {
@@ -72,7 +79,7 @@ export default function SignUp() {
             router.replace('/(tabs)/home');
 
         } catch (error) {
-            Alert.alert("Registration Error", error.message);
+            showAlert("Registration Error", error.message);
         } finally {
             setLoading(false);
         }
@@ -81,81 +88,91 @@ export default function SignUp() {
     const hasAllInput = fullName && username && email && password;
 
     return (
-        <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView contentContainerStyle={s.scrollContainer} keyboardShouldPersistTaps="handled">
-                <View style={s.container}>
-                    {/* Top Section */}
-                    <View style={s.top}>
-                        <Image source={require('../assets/images/logo.png')} style={s.logo} />
-                        <BodyText style={s.topText}>Sign up to explore about our app</BodyText>
-                    </View>
+        <SafeAreaView style={s.flex1}>
+            <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <ScrollView contentContainerStyle={s.scrollContainer} keyboardShouldPersistTaps="handled">
+                    <View style={s.container}>
+                        {/* Top Section */}
+                        <View style={s.top}>
+                            <Image source={require('../assets/images/logo.png')} style={s.logo} />
+                            <BodyText style={s.topText}>Sign up to explore about our app</BodyText>
+                        </View>
 
-                    {/* Design Shapes */}
-                    <View>
-                        <View style={s.pinkRectangle} />
-                        <View style={s.roundedRectangle} />
-                    </View>
+                        {/* Design Shapes */}
+                        <View>
+                            <View style={s.pinkRectangle} />
+                            <View style={s.roundedRectangle} />
+                        </View>
 
-                    {/* Toggle Buttons */}
-                    <View style={s.toggleRow}>
-                        <TouchableOpacity style={s.toggleBtn} onPress={handleLogin}>
-                            <Subheading style={[s.toggleText, { color: PRIMARY_COLOR }]}>Log in</Subheading>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[s.toggleBtn, s.activeToggle]} disabled>
-                            <Subheading style={[s.toggleText, s.activeText]}>Sign up</Subheading>
-                        </TouchableOpacity>
-                    </View>
+                        {/* Toggle Buttons */}
+                        <View style={s.toggleRow}>
+                            <TouchableOpacity style={s.toggleBtn} onPress={handleLogin}>
+                                <Subheading style={[s.toggleText, { color: PRIMARY_COLOR }]}>Log in</Subheading>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[s.toggleBtn, s.activeToggle]} disabled>
+                                <Subheading style={[s.toggleText, s.activeText]}>Sign up</Subheading>
+                            </TouchableOpacity>
+                        </View>
 
-                    {/* Full Name Input */}
-                    <View style={s.inputWrap}>
-                        <TextInput
-                            placeholder="Full Name" style={[s.input, s.inputFont]} value={fullName} onChangeText={handleChange(setFullName, 'n')} />
-                        {errors.n && <BodyText style={s.err}>Required</BodyText>}
-                    </View>
+                        {/* Full Name Input */}
+                        <View style={s.inputWrap}>
+                            <TextInput
+                                placeholder="Full Name" style={[s.input, s.inputFont]} value={fullName} onChangeText={handleChange(setFullName, 'n')} />
+                            {errors.n && <BodyText style={s.err}>Required</BodyText>}
+                        </View>
 
-                    {/* Username Input */}
-                    <View style={s.inputWrap}>
-                        <TextInput
-                            placeholder="Username" style={[s.input, s.inputFont]} value={username} onChangeText={handleChange(setUsername, 'u')} />
-                        {errors.u && <BodyText style={s.err}>Required</BodyText>}
-                    </View>
+                        {/* Username Input */}
+                        <View style={s.inputWrap}>
+                            <TextInput
+                                placeholder="Username" style={[s.input, s.inputFont]} value={username} onChangeText={handleChange(setUsername, 'u')} />
+                            {errors.u && <BodyText style={s.err}>Required</BodyText>}
+                        </View>
 
-                    {/* Email Input - NEW */}
-                    <View style={s.inputWrap}>
-                        <TextInput
-                            placeholder="Email" keyboardType="email-address" style={[s.input, s.inputFont]} value={email} onChangeText={handleChange(setEmail, 'e')} />
-                        {errors.e && <BodyText style={s.err}>Required</BodyText>}
-                    </View>
+                        {/* Email Input - NEW */}
+                        <View style={s.inputWrap}>
+                            <TextInput
+                                placeholder="Email" keyboardType="email-address" style={[s.input, s.inputFont]} value={email} onChangeText={handleChange(setEmail, 'e')} />
+                            {errors.e && <BodyText style={s.err}>Required</BodyText>}
+                        </View>
 
-                    {/* Password Input */}
-                    <View style={s.inputWrap}>
-                        <TextInput
-                            placeholder="Password"
-                            secureTextEntry={!showPassword}
-                            style={[s.input, s.inputFont, s.passwordInput]}
-                            value={password}
-                            onChangeText={handleChange(setPassword, 'p')}
-                        />
-                        <TouchableOpacity
-                            style={s.eyeIcon}
-                            onPress={() => setShowPassword(!showPassword)}
-                        >
-                            <Ionicons
-                                name={showPassword ? "eye-off" : "eye"}
-                                size={24}
-                                color="#999"
+                        {/* Password Input */}
+                        <View style={s.inputWrap}>
+                            <TextInput
+                                placeholder="Password"
+                                secureTextEntry={!showPassword}
+                                style={[s.input, s.inputFont, s.passwordInput]}
+                                value={password}
+                                onChangeText={handleChange(setPassword, 'p')}
                             />
-                        </TouchableOpacity>
-                        {errors.p && <BodyText style={s.err}>Required</BodyText>}
-                    </View>
+                            <TouchableOpacity
+                                style={s.eyeIcon}
+                                onPress={() => setShowPassword(!showPassword)}
+                            >
+                                <Ionicons
+                                    name={showPassword ? "eye-off" : "eye"}
+                                    size={24}
+                                    color="#999"
+                                />
+                            </TouchableOpacity>
+                            {errors.p && <BodyText style={s.err}>Required</BodyText>}
+                        </View>
 
-                    {/* Submit Button */}
-                    <TouchableOpacity onPress={submit} style={[s.btn, (!hasAllInput || loading) && s.disabled]} disabled={!hasAllInput || loading}>
-                        {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Sign up</Subheading>}
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                        {/* Submit Button */}
+                        <TouchableOpacity onPress={submit} style={[s.btn, (!hasAllInput || loading) && s.disabled]} disabled={!hasAllInput || loading}>
+                            {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Sign up</Subheading>}
+                        </TouchableOpacity>
+
+                        <CustomAlert
+                            visible={alertConfig.visible}
+                            title={alertConfig.title}
+                            message={alertConfig.message}
+                            onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+                            singleButton
+                        />
+                    </View>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 }
 

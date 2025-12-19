@@ -10,7 +10,11 @@ import {
     deleteBoard,
     getBoardDetails,
     deletePins,
-    savePin
+    savePin,
+    addComment,
+    getUnsplashPins,
+    getForYouPins,
+    searchPins
 } from "../controllers/pinController.js";
 import { v2 as cloudinary } from 'cloudinary';
 import multer from 'multer';
@@ -49,6 +53,10 @@ router.put("/boards/:id", protectRoute, updateBoard);
 router.delete("/boards/:id", protectRoute, deleteBoard);
 router.get("/boards/:id", protectRoute, getBoardDetails); // Get single board details
 
+router.get("/unsplash", protectRoute, getUnsplashPins);
+router.get("/for-you", protectRoute, getForYouPins);
+router.get("/search", protectRoute, searchPins);
+router.post("/:id/comment", protectRoute, addComment);
 router.get("/:id", getPinById); // Get single pin by ID
 router.post("/delete-batch", protectRoute, deletePins); // Delete multiple pins
 router.post("/save/:id", protectRoute, savePin); // Save pin to board

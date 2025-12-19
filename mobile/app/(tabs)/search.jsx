@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, ScrollView, Image, Dimensions, TextInput, TouchableOpacity, StyleSheet, FlatList, Text } from 'react-native';
+import { View, ScrollView, Image, Dimensions, TextInput, TouchableOpacity, StyleSheet, FlatList, Text, RefreshControl } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { Subheading, BodyText } from '../components/CustomText';
@@ -17,6 +18,14 @@ const Search = () => {
   const [searching, setSearching] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const topScrollRef = useRef(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setSearchText('');
+    setSearchResults([]);
+    setTimeout(() => setRefreshing(false), 1000);
+  };
 
   // Debounced Search Effect
   useEffect(() => {
@@ -34,19 +43,17 @@ const Search = () => {
   const performSearch = async (query) => {
     setSearching(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/pins?search=${encodeURIComponent(query)}`, {
+      const res = await fetch(`${API_BASE_URL}/pins/search?q=${encodeURIComponent(query)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
-        // Transform if needed (backend matches UI structure mostly)
-        // UI expects: id, image, board, description. 
-        // Backend returns: _id, images[{url}], board, description, title
         const transformed = data.map(p => ({
-          id: p._id,
+          id: p._id || p.id,
           image: { uri: p.images[0]?.url },
           description: p.title || p.description,
-          board: p.board
+          board: p.board,
+          isUnsplash: p.isUnsplash || p._id?.startsWith('unsplash-')
         }));
         setSearchResults(transformed);
       }
@@ -82,7 +89,7 @@ const Search = () => {
   };
 
   return (
-    <View style={s.container1}>
+    <SafeAreaView style={s.container1}>
       {/* Search Bar */}
       <View style={s.searchBar}>
         <Ionicons name="search" size={21} color="black" />
@@ -114,6 +121,7 @@ const Search = () => {
             columnWrapperStyle={s.searchResultsRow}
             contentContainerStyle={s.searchResultsContainer}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D14D72" />}
             ListEmptyComponent={
               <View style={s.emptyState}>
                 <BodyText style={{ color: '#666', textAlign: 'center' }}>
@@ -129,7 +137,10 @@ const Search = () => {
           />
         ) : (
           // Default Categorized View
-          <ScrollView style={{ flex: 1, backgroundColor: '#fef2f4' }}>
+          <ScrollView
+            style={{ flex: 1, backgroundColor: '#fef2f4' }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D14D72" />}
+          >
 
             <View style={s.container3}>
               {/* Top Slider (Trending) */}
@@ -208,7 +219,7 @@ const Search = () => {
           </ScrollView>
         )}
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

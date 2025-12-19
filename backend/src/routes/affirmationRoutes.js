@@ -5,7 +5,6 @@ import fetch from 'node-fetch';
 const router = express.Router();
 
 // Get a daily affirmation (Persisted for the day)
-// Get a daily affirmation (Persisted for the day)
 router.get('/daily', async (req, res) => {
     try {
         const today = new Date().toISOString().split('T')[0];

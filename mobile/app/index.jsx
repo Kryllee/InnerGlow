@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Image, TextInput, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Subheading, BodyText } from './components/CustomText';
@@ -7,6 +8,7 @@ import { FONTS } from './constants/fonts';
 import SplashScreen from './components/SplashScreen';
 import { API_BASE_URL } from './config';
 import { useUser } from './context/UserContext';
+import CustomAlert from './components/CustomAlert';
 
 const INTRO_DELAY = 2000;
 const SHAPE_WIDTH = 117;
@@ -24,6 +26,11 @@ const Index = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [alertConfig, setAlertConfig] = useState({ visible: false, title: '', message: '' });
+
+    const showAlert = (title, message) => {
+        setAlertConfig({ visible: true, title, message });
+    };
 
     const router = useRouter();
     const { updateProfile, login } = useUser();
@@ -43,7 +50,7 @@ const Index = () => {
 
     const submit = async () => {
         if (!username.trim() || !password.trim()) {
-            return Alert.alert('Required', 'Please enter username/email and password');
+            return showAlert('Required', 'Please enter username/email and password');
         }
 
         setLoading(true);
@@ -75,7 +82,7 @@ const Index = () => {
             router.replace('/(tabs)/home');
 
         } catch (error) {
-            Alert.alert("Login Error", error.message);
+            showAlert("Login Error", error.message);
         } finally {
             setLoading(false);
         }
@@ -86,90 +93,100 @@ const Index = () => {
     const hasInput = username && password;
 
     return (
-        <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView contentContainerStyle={s.scrollContainer} keyboardShouldPersistTaps="handled">
-                <View style={s.container}>
-                    <View style={s.topContainer}>
-                        <Image source={require('../assets/images/logo.png')} style={s.logo} />
-                        <BodyText style={s.topText}>Log in to explore about our app</BodyText>
-                    </View>
+        <SafeAreaView style={s.flex1}>
+            <KeyboardAvoidingView style={s.flex1} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <ScrollView contentContainerStyle={s.scrollContainer} keyboardShouldPersistTaps="handled">
+                    <View style={s.container}>
+                        <View style={s.topContainer}>
+                            <Image source={require('../assets/images/logo.png')} style={s.logo} />
+                            <BodyText style={s.topText}>Log in to explore about our app</BodyText>
+                        </View>
 
-                    <View>
-                        <View style={s.pinkRectangle} />
-                        <View style={s.roundedRectangle} />
-                    </View>
+                        <View>
+                            <View style={s.pinkRectangle} />
+                            <View style={s.roundedRectangle} />
+                        </View>
 
-                    <View style={s.toggleRow}>
-                        <TouchableOpacity
-                            style={[s.toggleBtn, s.activeToggle]}
-                            disabled
-                        >
-                            <Subheading style={[s.toggleText, s.activeText]}>Log in</Subheading>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[s.toggleBtn]}
-                            onPress={handleSignUp}
-                        >
-                            <Subheading style={[s.toggleText, s.inactiveText]}>Sign up</Subheading>
-                        </TouchableOpacity>
-                    </View>
+                        <View style={s.toggleRow}>
+                            <TouchableOpacity
+                                style={[s.toggleBtn, s.activeToggle]}
+                                disabled
+                            >
+                                <Subheading style={[s.toggleText, s.activeText]}>Log in</Subheading>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[s.toggleBtn]}
+                                onPress={handleSignUp}
+                            >
+                                <Subheading style={[s.toggleText, s.inactiveText]}>Sign up</Subheading>
+                            </TouchableOpacity>
+                        </View>
 
-                    <View style={s.inputContainer}>
-                        <TextInput
-                            placeholder="Username or Email"
-                            keyboardType="email-address"
-                            style={[s.input, s.inputFont]}
-                            onChangeText={setUsername}
-                            value={username}
-                            autoCapitalize="none"
-                        />
-                    </View>
-
-                    <View style={s.inputContainer}>
-                        <TextInput
-                            placeholder="Password"
-                            secureTextEntry={!showPassword}
-                            style={[s.input, s.inputFont, s.passwordInput]}
-                            onChangeText={setPassword}
-                            value={password}
-                        />
-                        <TouchableOpacity
-                            style={s.eyeIcon}
-                            onPress={() => setShowPassword(!showPassword)}
-                        >
-                            <Ionicons
-                                name={showPassword ? "eye-off" : "eye"}
-                                size={24}
-                                color="#999"
+                        <View style={s.inputContainer}>
+                            <TextInput
+                                placeholder="Username or Email"
+                                keyboardType="email-address"
+                                style={[s.input, s.inputFont]}
+                                onChangeText={setUsername}
+                                value={username}
+                                autoCapitalize="none"
                             />
+                        </View>
+
+                        <View style={s.inputContainer}>
+                            <TextInput
+                                placeholder="Password"
+                                secureTextEntry={!showPassword}
+                                style={[s.input, s.inputFont, s.passwordInput]}
+                                onChangeText={setPassword}
+                                value={password}
+                            />
+                            <TouchableOpacity
+                                style={s.eyeIcon}
+                                onPress={() => setShowPassword(!showPassword)}
+                            >
+                                <Ionicons
+                                    name={showPassword ? "eye-off" : "eye"}
+                                    size={24}
+                                    color="#999"
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity onPress={() => { }} style={s.forgotPassword}>
+                            <BodyText style={s.forgotPasswordText}>Forgot password?</BodyText>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={submit}
+                            style={[s.btn, (!hasInput || loading) && s.disabled]}
+                            disabled={!hasInput || loading}
+                        >
+                            {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Log in</Subheading>}
+                        </TouchableOpacity>
+
+                        <BodyText style={s.orText}>or login with</BodyText>
+
+                        <View style={s.iconRow}>
+                            <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
+                                <Image source={require('./(tabs)/assets/images/google.png')} style={s.googleImage} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
+                                <Ionicons name="logo-facebook" size={30} color="#1877F2" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
-                    <TouchableOpacity onPress={() => { }} style={s.forgotPassword}>
-                        <BodyText style={s.forgotPasswordText}>Forgot password?</BodyText>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={submit}
-                        style={[s.btn, (!hasInput || loading) && s.disabled]}
-                        disabled={!hasInput || loading}
-                    >
-                        {loading ? <ActivityIndicator color="#000" /> : <Subheading style={s.btnText}>Log in</Subheading>}
-                    </TouchableOpacity>
-
-                    <BodyText style={s.orText}>or login with</BodyText>
-
-                    <View style={s.iconRow}>
-                        <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
-                            <Ionicons name="logo-google" size={30} color="#DB4437" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={s.iconContainer} onPress={() => { }}>
-                            <Ionicons name="logo-facebook" size={30} color="#1877F2" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                    <CustomAlert
+                        visible={alertConfig.visible}
+                        title={alertConfig.title}
+                        message={alertConfig.message}
+                        onClose={() => setAlertConfig({ ...alertConfig, visible: false })}
+                        singleButton
+                    />
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </SafeAreaView>
     );
 };
 

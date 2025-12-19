@@ -56,17 +56,22 @@ const JournalGratitudeView = () => {
 
     // Save edited content
     const saveEdit = async () => {
-        if (entryType === 'journal') {
-            // Update journal entry
-            await updateEntry(selectedEntry._id, { text: editedText }, 'journal');
-            setSelectedEntry({ ...selectedEntry, text: editedText });
-        } else {
-            // Update gratitude entry - split by newlines
-            const newItems = editedText.split('\n').filter(item => item.trim() !== '');
-            await updateEntry(selectedEntry._id, { items: newItems }, 'gratitude');
-            setSelectedEntry({ ...selectedEntry, items: newItems });
+        try {
+            if (entryType === 'journal') {
+                // Update journal entry
+                await updateEntry(selectedEntry._id, { text: editedText }, 'journal');
+                setSelectedEntry({ ...selectedEntry, text: editedText });
+            } else {
+                // Update gratitude entry - split by newlines
+                const newItems = editedText.split('\n').filter(item => item.trim() !== '');
+                await updateEntry(selectedEntry._id, { items: newItems }, 'gratitude');
+                setSelectedEntry({ ...selectedEntry, items: newItems });
+            }
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Failed to save edit in View:", error);
+            showAlert("Update Failed", "We couldn't reach the server to save your changes. Please check your connection.");
         }
-        setIsEditing(false);
     };
 
     // Delete Entry Feature
@@ -75,13 +80,14 @@ const JournalGratitudeView = () => {
             "Delete Entry",
             "Are you sure you want to delete this entry? This action cannot be undone.",
             async () => {
-                const success = await deleteEntry(selectedEntry._id, entryType);
-                if (success) {
+                try {
+                    await deleteEntry(selectedEntry._id, entryType);
                     hideAlert();
                     closeModal();
-                } else {
+                } catch (error) {
+                    console.error("Failed to delete in View:", error);
                     hideAlert();
-                    showAlert('Error', 'Failed to delete entry', null, true);
+                    showAlert('Error', 'Failed to delete entry. Please check your connection.', null, true);
                 }
             }
         );

@@ -1,5 +1,6 @@
 import Pin from "../models/Pin.js";
 import Board from "../models/Board.js";
+import fetch from "node-fetch";
 
 // Create a new pin
 export const createPin = async (req, res) => {
@@ -39,8 +40,13 @@ export const getPins = async (req, res) => {
             filter.board = board;
         }
 
-        // Exclude saved pins AND private pins from the main feed unless a specific userId is provided
-        if (!userId) {
+        // If searching by board but NO userId, default to only public discovery/community pins
+        if (board && !userId) {
+            filter.isSaved = { $ne: true };
+            filter.isPrivate = { $ne: true };
+            // Optional: only show pins from the "Discovery" board if that's the intention
+            // filter.board = 'Discovery'; 
+        } else if (!userId) {
             filter.isSaved = { $ne: true };
             filter.isPrivate = { $ne: true };
         }
@@ -79,14 +85,62 @@ export const getBoards = async (req, res) => {
 // Get a single pin by ID
 export const getPinById = async (req, res) => {
     try {
-        const pin = await Pin.findById(req.params.id)
-            .populate('userId', 'username profileImage fullName')
-            .populate('originalAuthor', 'username profileImage fullName'); // Populate original author
+        const { id } = req.params;
+        let pin;
+
+        if (id.startsWith('unsplash-')) {
+            const unsplashIdStr = id.replace('unsplash-', '');
+            // 1. Check if we have a local mirror with comments
+            pin = await Pin.findOne({ unsplashId: unsplashIdStr })
+                .populate('userId', 'username profileImage fullName')
+                .populate('comments.userId', 'username profileImage fullName');
+
+            if (!pin) {
+                // 2. Fetch from Unsplash API directly if not in DB
+                const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+                if (!accessKey) {
+                    return res.status(500).json({ message: 'Unsplash key not configured' });
+                }
+
+                const unsplashRes = await fetch(`https://api.unsplash.com/photos/${unsplashIdStr}`, {
+                    headers: { 'Authorization': `Client-ID ${accessKey}` }
+                });
+
+                if (unsplashRes.ok) {
+                    const photo = await unsplashRes.json();
+                    return res.json({
+                        _id: `unsplash-${photo.id}`,
+                        unsplashId: photo.id,
+                        title: photo.description || photo.alt_description || 'Inspiration',
+                        description: photo.alt_description || '',
+                        images: [{
+                            url: photo.urls.regular,
+                            width: photo.width,
+                            height: photo.height
+                        }],
+                        userId: {
+                            username: photo.user.username,
+                            profileImage: photo.user.profile_image.medium,
+                            fullName: photo.user.name
+                        },
+                        comments: [],
+                        isUnsplash: true
+                    });
+                }
+            }
+        } else {
+            pin = await Pin.findById(id)
+                .populate('userId', 'username profileImage fullName')
+                .populate('originalAuthor', 'username profileImage fullName')
+                .populate('comments.userId', 'username profileImage fullName');
+        }
+
         if (!pin) {
             return res.status(404).json({ message: 'Pin not found' });
         }
         res.json(pin);
     } catch (error) {
+        console.error('Get pin by ID error:', error);
         res.status(500).json({ message: error.message });
     }
 };
@@ -232,11 +286,12 @@ export const getBoardDetails = async (req, res) => {
                 return res.status(404).json({ message: 'Board not found' });
             }
 
-            // Fetch pins by boardId OR board name (to include legacy pins created before Board doc existed)
+            // Fetch pins by boardId OR board name (strictly for THIS user)
             pins = await Pin.find({
+                userId: userId, // CRITICAL: Only show pins belonging to this user
                 $or: [
                     { boardId: id },
-                    { board: board.name, userId: userId }
+                    { board: board.name }
                 ]
             })
                 .populate('userId', 'username profileImage fullName')
@@ -274,6 +329,7 @@ export const deletePins = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
 
 // Save a pin (Clone logic)
 export const savePin = async (req, res) => {
@@ -330,7 +386,8 @@ export const savePin = async (req, res) => {
             boardId: targetBoardId,
             images: originalPin.images,
             isPrivate: false, // Default
-            isSaved: true // Mark as a saved copy
+            isSaved: true, // Mark as a saved copy
+            unsplashId: originalPin.unsplashId // Carry over unsplashId if it exists
         });
 
         await newPin.save();
@@ -339,6 +396,195 @@ export const savePin = async (req, res) => {
 
     } catch (error) {
         console.error('Save pin error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Helper to Fetch from Unsplash
+const fetchUnsplashSearch = async (query, page = 1, per_page = 20) => {
+    try {
+        const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+        if (!accessKey) return [];
+
+        const fetchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${per_page}`;
+        const response = await fetch(fetchUrl, {
+            headers: { 'Authorization': `Client-ID ${accessKey}` }
+        });
+
+        if (!response.ok) return [];
+
+        const data = await response.json();
+        return data.results.map(photo => ({
+            _id: `unsplash-${photo.id}`,
+            unsplashId: photo.id,
+            title: photo.description || photo.alt_description || 'Inspiration',
+            description: photo.alt_description || '',
+            board: 'Discovery',
+            images: [{
+                url: photo.urls.regular,
+                width: photo.width,
+                height: photo.height
+            }],
+            userId: {
+                username: photo.user.username,
+                profileImage: photo.user.profile_image.medium,
+                fullName: photo.user.name
+            },
+            isUnsplash: true
+        }));
+    } catch (e) {
+        console.error('Unsplash search error:', e);
+        return [];
+    }
+};
+
+// Hybrid For You Feed (Mixes local and Unsplash)
+export const getForYouPins = async (req, res) => {
+    try {
+        // 1. Get local public pins
+        const localPins = await Pin.find({
+            isSaved: { $ne: true },
+            isPrivate: { $ne: true }
+        })
+            .populate('userId', 'username profileImage fullName')
+            .sort({ createdAt: -1 })
+            .limit(10);
+
+        // 2. Get Unsplash extras
+        const unsplashPins = await fetchUnsplashSearch('aesthetic', 1, 15);
+
+        // 3. Combine (Local first, then Unsplash)
+        const combined = [...localPins, ...unsplashPins];
+        res.json(combined);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Hybrid Search
+export const searchPins = async (req, res) => {
+    try {
+        const query = req.query.q || '';
+        if (!query) return res.json([]);
+
+        // 1. Search local DB
+        const searchRegex = new RegExp(query, 'i');
+        const localPins = await Pin.find({
+            isPrivate: { $ne: true },
+            $or: [
+                { title: searchRegex },
+                { description: searchRegex }
+            ]
+        }).populate('userId', 'username profileImage fullName').limit(15);
+
+        // 2. Search Unsplash
+        const unsplashPins = await fetchUnsplashSearch(query, 1, 20);
+
+        res.json([...localPins, ...unsplashPins]);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Add a comment to a pin
+export const addComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { text, unsplashData } = req.body;
+
+        if (!text) {
+            return res.status(400).json({ message: 'Comment text is required' });
+        }
+
+        let pin;
+        if (id.startsWith('unsplash-')) {
+            const unsplashIdStr = id.replace('unsplash-', '');
+            pin = await Pin.findOne({ unsplashId: unsplashIdStr });
+
+            if (!pin && unsplashData) {
+                // Mirror the pin: the commenting user becomes the "discoverer"
+                pin = new Pin({
+                    userId: req.user._id,
+                    title: unsplashData.title || 'Inspiration',
+                    description: unsplashData.description || '',
+                    board: unsplashData.board || 'Discovery',
+                    images: unsplashData.images,
+                    unsplashId: unsplashIdStr,
+                    isSaved: false,
+                    isPrivate: false
+                });
+                await pin.save();
+            } else if (!pin) {
+                return res.status(400).json({ message: 'Missing data to mirror this discovery' });
+            }
+        } else {
+            pin = await Pin.findById(id);
+        }
+
+        if (!pin) return res.status(404).json({ message: 'Pin not found' });
+
+        pin.comments.push({
+            userId: req.user._id,
+            text: text.trim(),
+            createdAt: new Date()
+        });
+
+        await pin.save();
+
+        const populated = await Pin.findById(pin._id).populate('comments.userId', 'username profileImage fullName');
+        res.status(201).json(populated.comments);
+    } catch (error) {
+        console.error('Add comment error:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+// Proxies Unsplash API to keep key safe on backend
+export const getUnsplashPins = async (req, res) => {
+    try {
+        const { query = 'aesthetic', page = 1, per_page = 20 } = req.query;
+        const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+
+        if (!accessKey) {
+            return res.status(500).json({ message: 'Unsplash API key not configured in backend env' });
+        }
+
+        const fetchUrl = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${per_page}`;
+        const response = await fetch(fetchUrl, {
+            headers: { 'Authorization': `Client-ID ${accessKey}` }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Unsplash API error:', errorText);
+            return res.status(response.status).json({ message: 'Failed to fetch from Unsplash' });
+        }
+
+        const data = await response.json();
+
+        // Transform for mobile app
+        const pins = data.results.map(photo => ({
+            _id: `unsplash-${photo.id}`,
+            unsplashId: photo.id,
+            title: photo.description || photo.alt_description || 'Inspiration',
+            description: photo.alt_description || '',
+            board: 'Discovery',
+            images: [{
+                url: photo.urls.regular,
+                width: photo.width,
+                height: photo.height
+            }],
+            userId: { // Mirror Unsplash user as InnerGlow user object for UI consistency
+                username: photo.user.username,
+                profileImage: photo.user.profile_image.medium,
+                fullName: photo.user.name
+            },
+            isUnsplash: true
+        }));
+
+        res.json(pins);
+    } catch (error) {
+        console.error('Get Unsplash pins error:', error);
         res.status(500).json({ message: error.message });
     }
 };
